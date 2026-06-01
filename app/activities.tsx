@@ -163,7 +163,7 @@ const styles = StyleSheet.create({
   txIconBox: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   txInfo: { flex: 1 },
   txTitle: { color: 'white', fontSize: 16, fontWeight: '600', marginBottom: 4 },
-  txSubtitle: { color: 'rgba(255,255,255,0.7)', fontSize: 13 },
+  txSubtitle: { color: 'rgba(255,255,255,0.7)', fontSize: 11 },
   txAmounts: { alignItems: 'flex-end', justifyContent: 'center' },
   txDate: { color: 'rgba(255,255,255,0.5)', fontSize: 13 },
 

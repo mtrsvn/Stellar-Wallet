@@ -46,13 +46,13 @@ export class EthService {
 
       return txs.map((tx: any) => {
         const isIncoming = tx.to?.toLowerCase() === address.toLowerCase();
-        const value = parseFloat(ethers.formatEther(tx.value || '0')).toFixed(6);
+        const value = parseFloat(ethers.formatEther(tx.value || '0')).toFixed(3);
         const txDate = new Date(parseInt(tx.timeStamp) * 1000);
         const date = txDate.toLocaleDateString();
         const dateTime = formatDateTime(txDate);
         
-        const shortFrom = tx.from ? `${tx.from.substring(0, 6)}...${tx.from.substring(tx.from.length - 4)}` : '';
-        const shortTo = tx.to ? `${tx.to.substring(0, 6)}...${tx.to.substring(tx.to.length - 4)}` : '';
+        const shortFrom = tx.from ? `${tx.from.substring(0, 4)}...${tx.from.substring(tx.from.length - 4)}` : '';
+        const shortTo = tx.to ? `${tx.to.substring(0, 4)}...${tx.to.substring(tx.to.length - 4)}` : '';
         const subtitle = `${value} ETH ${isIncoming ? 'from' : 'to'} ${isIncoming ? shortFrom : shortTo}`;
 
         return {
