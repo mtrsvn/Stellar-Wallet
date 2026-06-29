@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Tabs } from 'expo-router';
 import { View, TouchableWithoutFeedback, StyleSheet, Platform, Animated, Dimensions, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { ListIcon, HomeIcon, WalletIcon } from 'lucide-react-native';
+import { ArrowRightLeft, HomeIcon, WalletIcon } from 'lucide-react-native';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const TAB_BAR_WIDTH = SCREEN_WIDTH - 48; // taking into account paddingHorizontal: 24
@@ -53,7 +53,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
           };
 
           let IconComponent;
-          if (route.name === 'transactions') IconComponent = ListIcon;
+          if (route.name === 'transactions') IconComponent = ArrowRightLeft;
           else if (route.name === 'index') IconComponent = HomeIcon;
           else if (route.name === 'assets') IconComponent = WalletIcon;
 
