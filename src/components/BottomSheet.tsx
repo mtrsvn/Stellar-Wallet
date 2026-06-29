@@ -42,6 +42,9 @@ export function BottomSheet({ visible, onClose, children, avoidKeyboard = false 
 
   const panResponder = useRef(
     PanResponder.create({
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return gestureState.dy > 10 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+      },
       onMoveShouldSetPanResponderCapture: (_, gestureState) => {
         return gestureState.dy > 10 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
       },
@@ -67,6 +70,14 @@ export function BottomSheet({ visible, onClose, children, avoidKeyboard = false 
           }).start();
         }
       },
+      onPanResponderTerminate: () => {
+        sheetY.flattenOffset();
+        Animated.spring(sheetY, {
+          toValue: 0,
+          useNativeDriver: false,
+          bounciness: 0,
+        }).start();
+      }
     })
   ).current;
 
@@ -148,7 +159,9 @@ export function BottomSheet({ visible, onClose, children, avoidKeyboard = false 
         {/* Sheet container */}
         <Animated.View style={[styles.kavWrapper, { paddingBottom: kbHeight }]} pointerEvents="box-none">
           <Animated.View style={{ transform: [{ translateY: sheetY }] }} pointerEvents="auto" {...panResponder.panHandlers}>
-            {children}
+            <View style={{ width: '100%' }} onStartShouldSetResponder={() => true}>
+              {children}
+            </View>
           </Animated.View>
         </Animated.View>
       </View>
