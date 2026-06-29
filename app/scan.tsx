@@ -50,7 +50,9 @@ export default function ScanScreen() {
 
     // 2. Find matching native asset
     let detectedAssetId = params.assetId as string | undefined;
-    if (detectedNetworkType) {
+    const currentAsset = wallet.tokenBalances?.find(t => t.id === detectedAssetId);
+
+    if (detectedNetworkType && currentAsset?.network.type !== detectedNetworkType) {
        const matchingAsset = wallet.tokenBalances?.find(t => t.isNative && t.network.type === detectedNetworkType);
        if (matchingAsset) {
           detectedAssetId = matchingAsset.id;

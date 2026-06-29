@@ -296,7 +296,7 @@ export default function DashboardScreen() {
           <Text style={styles.sheetTitle}>Select Network</Text>
           
           <ScrollView style={{ maxHeight: 400, marginTop: 12, marginBottom: -12 }}>
-            {wallet.tokenBalances?.map((tb) => (
+            {wallet.tokenBalances?.filter(tb => tb.isNative && Number(tb.balanceValue) > 0).map((tb) => (
               <HapticTouchableOpacity
                 key={tb.id}
                 style={styles.txCard}
@@ -306,27 +306,15 @@ export default function DashboardScreen() {
                 }}
               >
                 <View style={styles.networkLogoContainer}>
-                  {tb.isNative ? (
-                    getNetworkIcon(tb.network.symbol, 40)
-                  ) : (
-                    tb.token?.logoUrl ? (
-                      <Image source={{ uri: tb.token.logoUrl }} style={{ width: 40, height: 40, borderRadius: 20 }} />
-                    ) : (
-                      <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#333' }} />
-                    )
-                  )}
-                  {!tb.isNative && (
-                    <View style={{ position: 'absolute', bottom: -2, right: -2, borderRadius: 10, backgroundColor: '#1C1C1E' }}>
-                      {getNetworkIcon(tb.network.symbol, 16)}
+                  {getNetworkIcon(tb.network.symbol, 40) || (
+                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: tb.network.color, justifyContent: 'center', alignItems: 'center' }}>
+                      <Text style={{color: 'white', fontWeight: 'bold'}}>{tb.network.symbol[0]}</Text>
                     </View>
                   )}
                 </View>
                 <View style={styles.txInfo}>
-                  <Text style={[styles.txTitle, { marginBottom: 2 }]}>
-                    {tb.isNative ? tb.network.name : tb.token?.name || 'Token'}
-                  </Text>
-                  <Text style={styles.txSubtitle}>
-                    {tb.isNative ? `${tb.balanceStr} ${tb.network.symbol}` : `${tb.balanceStr} ${tb.token?.symbol}`}
+                  <Text style={[styles.txTitle, { marginBottom: 0 }]}>
+                    {tb.network.name}
                   </Text>
                 </View>
                 <View style={styles.txAmounts}>
