@@ -3,6 +3,7 @@ import { Tabs } from 'expo-router';
 import { View, TouchableWithoutFeedback, StyleSheet, Platform, Animated, Dimensions, Text } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowRightLeft, HomeIcon, WalletIcon } from 'lucide-react-native';
+import * as Haptics from 'expo-haptics';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const TAB_BAR_WIDTH = SCREEN_WIDTH - 48; // taking into account paddingHorizontal: 24
@@ -41,6 +42,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
           const isFocused = state.index === index;
 
           const onPress = () => {
+            Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
             const event = navigation.emit({
               type: 'tabPress',
               target: route.key,
@@ -69,7 +71,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
               <View style={styles.tabButton}>
                 {IconComponent && (
                   <IconComponent 
-                    color={isFocused ? '#ffffff' : 'rgba(255,255,255,0.45)'} 
+                    color={isFocused ? '#ffffff' : '#8E8E93'} 
                     size={isFocused ? 22 : 24} 
                     strokeWidth={isFocused ? 2.5 : 2}
                   />
@@ -133,11 +135,6 @@ const styles = StyleSheet.create({
     height: 52,
     backgroundColor: '#9C2CF0', 
     borderRadius: 26,
-    shadowColor: '#A855F7',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.4,
-    shadowRadius: 12,
-    elevation: 8,
   },
   tabButton: {
     flex: 1,
