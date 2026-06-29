@@ -86,6 +86,17 @@ export class WalletCore {
     }
   }
 
+  static getBtcPrivateKey(mnemonic: string, index: number = 0): string {
+    try {
+      const path = `m/84'/0'/0'/0/${index}`;
+      const wallet = ethers.HDNodeWallet.fromMnemonic(ethers.Mnemonic.fromPhrase(mnemonic), path);
+      return wallet.privateKey;
+    } catch (e) {
+      console.error('BTC pk derivation error:', e);
+      return '';
+    }
+  }
+
   static getSolanaAddress(mnemonic: string, index: number = 0): string {
     try {
       const seedHex = ethers.Mnemonic.fromPhrase(mnemonic).computeSeed().slice(2);
@@ -96,6 +107,19 @@ export class WalletCore {
       return solanaKeypair.publicKey.toBase58();
     } catch (e) {
       console.error('Solana derivation error:', e);
+      return '';
+    }
+  }
+
+  static getSolanaPrivateKey(mnemonic: string, index: number = 0): string {
+    try {
+      const seedHex = ethers.Mnemonic.fromPhrase(mnemonic).computeSeed().slice(2);
+      const path = `m/44'/501'/${index}'/0'`;
+      const derivedSeed = deriveSolanaSeed(seedHex, path);
+      const keypair = nacl.sign.keyPair.fromSeed(derivedSeed);
+      return bs58.encode(keypair.secretKey);
+    } catch (e) {
+      console.error('Solana pk derivation error:', e);
       return '';
     }
   }

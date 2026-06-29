@@ -40,16 +40,27 @@ export class EthService {
     privateKey: string,
     toAddress: string,
     amountStr: string,
-    network: Network
+    network: Network,
+    tokenAddress?: string,
+    decimals?: number
   ): Promise<{ success: boolean; hash?: string; error?: string }> {
     try {
       const provider = this.getProvider(network.rpcUrl);
       const wallet = new ethers.Wallet(privateKey, provider);
-      const tx = await wallet.sendTransaction({
-        to: toAddress,
-        value: ethers.parseEther(amountStr),
-      });
-      return { success: true, hash: tx.hash };
+      
+      if (tokenAddress && decimals) {
+         const abi = ["function transfer(address to, uint256 value) returns (bool)"];
+         const contract = new ethers.Contract(tokenAddress, abi, wallet);
+         const amount = ethers.parseUnits(amountStr, decimals);
+         const tx = await contract.transfer(toAddress, amount);
+         return { success: true, hash: tx.hash };
+      } else {
+         const tx = await wallet.sendTransaction({
+           to: toAddress,
+           value: ethers.parseEther(amountStr),
+         });
+         return { success: true, hash: tx.hash };
+      }
     } catch (e: any) {
       return {
         success: false,

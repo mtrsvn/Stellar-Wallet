@@ -9,6 +9,8 @@ import { GradientButton } from '../src/components/GradientButton';
 import { useWallet } from '../src/context/WalletContext';
 import { WalletCore } from '../src/utils/WalletCore';
 import { EthService } from '../src/services/EthService';
+import { SolService } from '../src/services/SolService';
+import { BtcService } from '../src/services/BtcService';
 import { ethers } from 'ethers';
 import { getNetworkIcon } from '../src/components/NetworkIcons';
 import { PinEntryScreen } from '../src/components/PinEntryScreen';
@@ -51,10 +53,6 @@ export default function SendScreen() {
       Alert.alert('Not Implemented', `Sending on ${selectedAsset.network.name} is not fully supported in this beta yet.`);
       return;
     }
-    if (!selectedAsset.isNative) {
-      Alert.alert('Not Implemented', 'Sending custom tokens is not yet supported in this beta. Please send native coins.');
-      return;
-    }
     if (!ethers.isAddress(cleanAddress)) {
       Alert.alert('Error', 'Invalid EVM recipient address.');
       return;
@@ -74,8 +72,36 @@ export default function SendScreen() {
         throw new Error("No active wallet found.");
       }
       
-      const privateKey = WalletCore.getEvmPrivateKey(activeWallet.mnemonic, 0);
-      const result = await EthService.sendTransaction(privateKey, cleanAddress, cleanAmount, selectedAsset!.network);
+      let result;
+      if (selectedAsset!.network.type === 'EVM') {
+        const privateKey = WalletCore.getEvmPrivateKey(activeWallet.mnemonic, 0);
+        result = await EthService.sendTransaction(
+          privateKey, 
+          cleanAddress, 
+          cleanAmount, 
+          selectedAsset!.network,
+          !selectedAsset!.isNative ? selectedAsset!.token?.address : undefined,
+          !selectedAsset!.isNative ? selectedAsset!.token?.decimals : undefined
+        );
+      } else if (selectedAsset!.network.type === 'SOL') {
+        const privateKey = WalletCore.getSolanaPrivateKey(activeWallet.mnemonic, 0);
+        result = await SolService.sendTransaction(
+          privateKey,
+          cleanAddress,
+          cleanAmount,
+          selectedAsset!.network
+        );
+      } else if (selectedAsset!.network.type === 'BTC') {
+        const privateKey = WalletCore.getBtcPrivateKey(activeWallet.mnemonic, 0);
+        result = await BtcService.sendTransaction(
+          privateKey,
+          cleanAddress,
+          cleanAmount,
+          selectedAsset!.network
+        );
+      } else {
+        throw new Error("Unsupported network type");
+      }
       
       if (result.success) {
         Alert.alert('Success', `Transaction Sent!\n\nHash:\n${result.hash}`, [

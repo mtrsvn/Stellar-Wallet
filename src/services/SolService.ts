@@ -1,5 +1,6 @@
-import { Connection, PublicKey } from '@solana/web3.js';
+import { Connection, PublicKey, Keypair, SystemProgram, Transaction, sendAndConfirmTransaction } from '@solana/web3.js';
 import { Network } from '../utils/networks';
+import bs58 from 'bs58';
 
 export class SolService {
   static async getBalance(address: string, network: Network): Promise<string> {
@@ -33,6 +34,43 @@ export class SolService {
     } catch (e) {
       console.error('SolService getTokenBalance Error:', e);
       return '0.000000';
+    }
+  }
+
+  static async sendTransaction(
+    privateKey: string,
+    toAddress: string,
+    amountStr: string,
+    network: Network
+  ): Promise<{ success: boolean; hash?: string; error?: string }> {
+    try {
+      const connection = new Connection(network.rpcUrl, 'confirmed');
+      const secretKey = bs58.decode(privateKey);
+      const keypair = Keypair.fromSecretKey(secretKey);
+      const toPublicKey = new PublicKey(toAddress);
+
+      const lamports = Math.floor(parseFloat(amountStr) * 1e9);
+
+      const transaction = new Transaction().add(
+        SystemProgram.transfer({
+          fromPubkey: keypair.publicKey,
+          toPubkey: toPublicKey,
+          lamports: lamports,
+        })
+      );
+
+      const signature = await sendAndConfirmTransaction(
+        connection,
+        transaction,
+        [keypair]
+      );
+
+      return { success: true, hash: signature };
+    } catch (e: any) {
+      return {
+        success: false,
+        error: e.message || 'Solana transaction failed',
+      };
     }
   }
 
