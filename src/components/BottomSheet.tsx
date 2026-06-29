@@ -35,10 +35,24 @@ export function BottomSheet({ visible, onClose, children, avoidKeyboard = false 
     return () => sheetY.removeListener(id);
   }, []);
 
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
+
   const panResponder = useRef(
     PanResponder.create({
+      onStartShouldSetPanResponder: () => false,
+      onStartShouldSetPanResponderCapture: (_, gestureState) => {
+        // If they touch the very top part (the handle area), capture immediately
+        return gestureState.y0 < SCREEN_HEIGHT * 0.5; // Roughly upper half check, or just rely on move
+      },
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return gestureState.dy > 5 && gestureState.vy > 0;
+      },
       onMoveShouldSetPanResponderCapture: (_, gestureState) => {
-        return gestureState.dy > 10 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+        // Force capture of downward swipes, stealing from ScrollView
+        return gestureState.dy > 5 && gestureState.vy > 0;
       },
       onPanResponderGrant: () => {
         sheetY.stopAnimation();
@@ -52,8 +66,8 @@ export function BottomSheet({ visible, onClose, children, avoidKeyboard = false 
       },
       onPanResponderRelease: (_, gestureState) => {
         sheetY.flattenOffset();
-        if (gestureState.dy > 120 || gestureState.vy > 0.6) {
-          onClose();
+        if (gestureState.dy > 100 || gestureState.vy > 0.5) {
+          onCloseRef.current();
         } else {
           Animated.spring(sheetY, {
             toValue: 0,
@@ -62,6 +76,14 @@ export function BottomSheet({ visible, onClose, children, avoidKeyboard = false 
           }).start();
         }
       },
+      onPanResponderTerminate: () => {
+        sheetY.flattenOffset();
+        Animated.spring(sheetY, {
+          toValue: 0,
+          useNativeDriver: false,
+          bounciness: 0,
+        }).start();
+      }
     })
   ).current;
 
