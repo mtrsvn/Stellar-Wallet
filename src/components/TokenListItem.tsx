@@ -3,7 +3,6 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Image } from 'react-native';
 import { TokenBalance } from '../context/WalletContext';
 import { getNetworkIcon } from './NetworkIcons';
-import { colors } from '../utils/colors';
 
 interface TokenListItemProps {
   item: TokenBalance;

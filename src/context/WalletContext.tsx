@@ -94,8 +94,15 @@ interface WalletContextType {
   transactions: Transaction[];
   isBalanceLoading: boolean;
   isTransactionsLoading: boolean;
-  savePasswordLocally: (password: string) => Promise<void>;
-  verifyPassword: (password: string) => Promise<boolean>;
+  userPin: string | null;
+  biometricEnabled: boolean;
+  pinAttempt: number;
+  isLocked: boolean;
+  lockedUntil: string | null;
+  savePin: (pin: string) => Promise<void>;
+  verifyPin: (pin: string) => Promise<boolean>;
+  setBiometrics: (enabled: boolean) => Promise<void>;
+  updatePinAttempts: (attempts: number, lockedUntil?: string | null) => Promise<void>;
   markCreated: () => Promise<void>;
   loadAccounts: () => Promise<void>;
   refreshData: () => Promise<void>;
@@ -125,6 +132,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [isBalanceLoading, setIsBalanceLoading] = useState(false);
   const [isTransactionsLoading, setIsTransactionsLoading] = useState(false);
 
+  // Security States
+  const [userPin, setUserPin] = useState<string | null>(null);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [pinAttempt, setPinAttempt] = useState(0);
+  const [isLocked, setIsLocked] = useState(false);
+  const [lockedUntil, setLockedUntil] = useState<string | null>(null);
+
   useEffect(() => {
     initWallet();
   }, []);
@@ -142,6 +156,18 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       
       const testnetPref = await safeGetItemAsync('is_testnet');
       if (testnetPref) setIsTestnet(testnetPref === 'true');
+
+      // Security
+      const pin = await safeGetItemAsync('wallet_pin');
+      setUserPin(pin || null);
+      const bio = await safeGetItemAsync('biometric_enabled');
+      setBiometricEnabled(bio === 'true');
+      const attempts = await safeGetItemAsync('pin_attempts');
+      setPinAttempt(attempts ? parseInt(attempts) : 0);
+      const locked = await safeGetItemAsync('is_locked');
+      setIsLocked(locked === 'true');
+      const lUntil = await safeGetItemAsync('locked_until');
+      setLockedUntil(lUntil || null);
 
       let wallets: SavedWallet[] = [];
       const storedWalletsStr = await safeGetItemAsync('saved_wallets');
@@ -368,13 +394,38 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     await loadWalletData(wallet);
   };
 
-  const savePasswordLocally = async (password: string) => {
-    await safeSetItemAsync('wallet_password', password);
+  const savePin = async (pin: string) => {
+    await safeSetItemAsync('wallet_pin', pin);
+    setUserPin(pin);
   };
 
-  const verifyPassword = async (password: string): Promise<boolean> => {
-    const stored = await safeGetItemAsync('wallet_password');
-    return stored === password;
+  const verifyPin = async (pin: string): Promise<boolean> => {
+    const stored = await safeGetItemAsync('wallet_pin');
+    return stored === pin;
+  };
+
+  const setBiometrics = async (enabled: boolean) => {
+    await safeSetItemAsync('biometric_enabled', enabled ? 'true' : 'false');
+    setBiometricEnabled(enabled);
+  };
+
+  const updatePinAttempts = async (attempts: number, lUntil?: string | null) => {
+    await safeSetItemAsync('pin_attempts', attempts.toString());
+    setPinAttempt(attempts);
+    
+    if (lUntil !== undefined) {
+      if (lUntil) {
+        await safeSetItemAsync('is_locked', 'true');
+        await safeSetItemAsync('locked_until', lUntil);
+        setIsLocked(true);
+        setLockedUntil(lUntil);
+      } else {
+        await safeSetItemAsync('is_locked', 'false');
+        await safeDeleteItemAsync('locked_until');
+        setIsLocked(false);
+        setLockedUntil(null);
+      }
+    }
   };
 
   const markCreated = async () => {
@@ -415,7 +466,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const logout = async () => {
     await safeDeleteItemAsync('wallet_created');
     await safeDeleteItemAsync('seed_phrase');
-    await safeDeleteItemAsync('wallet_password');
+    await safeDeleteItemAsync('wallet_pin');
+    await safeDeleteItemAsync('biometric_enabled');
+    await safeDeleteItemAsync('pin_attempts');
+    await safeDeleteItemAsync('is_locked');
+    await safeDeleteItemAsync('locked_until');
+    await safeDeleteItemAsync('wallet_password'); // clear legacy
     await safeDeleteItemAsync('saved_wallets');
     await safeDeleteItemAsync('active_wallet_id');
     setIsCreated(false);
@@ -425,8 +481,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setBtcAddress('');
     setSolAddress('');
     setTotalUsdBalance(0);
-    setNetworkBalances([]);
+    setTokenBalances([]);
     setTransactions([]);
+    setUserPin(null);
+    setBiometricEnabled(false);
+    setPinAttempt(0);
+    setIsLocked(false);
+    setLockedUntil(null);
   };
 
   return (
@@ -435,7 +496,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       evmAddress, btcAddress, solAddress,
       isTestnet, setIsTestnet: handleSetIsTestnet, tokenBalances, totalUsdBalance,
       transactions, isBalanceLoading, isTransactionsLoading,
-      savePasswordLocally, verifyPassword, markCreated,
+      userPin, biometricEnabled, pinAttempt, isLocked, lockedUntil,
+      savePin, verifyPin, setBiometrics, updatePinAttempts, markCreated,
       loadAccounts, refreshData, logout, removeActiveWallet, renameActiveWallet, switchWallet, addNewWallet,
     }}>
       {children}

@@ -84,7 +84,7 @@ export function WalletsSheet({ visible, onClose }: Props) {
                 <View style={styles.accountInfo}>
                   <Text style={[styles.accountName, isActive && styles.activeText]}>{w.name}</Text>
                   <Text style={styles.accountAddress} numberOfLines={1} ellipsizeMode="middle">
-                    {w.address}
+                    {w.evmAddress}
                   </Text>
                 </View>
                 {isActive && (

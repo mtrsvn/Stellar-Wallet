@@ -1,20 +1,25 @@
 import { HapticTouchableOpacity } from '../src/components/HapticTouchableOpacity';
 import { FontAwesome } from "@expo/vector-icons";
-import { CameraView, useCameraPermissions } from "expo-camera";
+import { CameraView, useCameraPermissions, scanFromURLAsync } from "expo-camera";
 import { LinearGradient } from "expo-linear-gradient";
-import { useRouter } from "expo-router";
+import { useRouter, useLocalSearchParams } from "expo-router";
 import React, { useEffect, useRef } from "react";
 import {
     StyleSheet,
     Text,
-    TouchableOpacity,
     View,
     Linking,
+    Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
+import * as ImagePicker from 'expo-image-picker';
+
+import { useWallet } from '../src/context/WalletContext';
 
 export default function ScanScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
+  const wallet = useWallet();
   const [permission, requestPermission] = useCameraPermissions();
 
   const handleRequestPermission = async () => {
@@ -31,11 +36,68 @@ export default function ScanScreen() {
 
   const handleScanned = (result: { data: string }) => {
     if (!result.data) return;
+    const address = result.data.trim();
 
-    router.replace({
-      pathname: "/(tabs)",
-      params: { scannedAddress: result.data, scanId: String(Date.now()) },
-    });
+    // 1. Auto-detect network from address format
+    let detectedNetworkType: 'EVM' | 'SOL' | 'BTC' | null = null;
+    if (address.startsWith('0x') && address.length === 42) {
+      detectedNetworkType = 'EVM';
+    } else if (/^(bc1|[13])[a-zA-HJ-NP-Z0-9]{25,39}$/.test(address)) {
+      detectedNetworkType = 'BTC';
+    } else if (/^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(address)) {
+      detectedNetworkType = 'SOL';
+    }
+
+    // 2. Find matching native asset
+    let detectedAssetId = params.assetId as string | undefined;
+    if (detectedNetworkType) {
+       const matchingAsset = wallet.tokenBalances?.find(t => t.isNative && t.network.type === detectedNetworkType);
+       if (matchingAsset) {
+          detectedAssetId = matchingAsset.id;
+       }
+    }
+
+    const returnTo = params.returnTo as string;
+    if (returnTo) {
+      router.replace({
+        pathname: returnTo as any,
+        params: { ...params, to: address, scanId: String(Date.now()), assetId: detectedAssetId },
+      });
+    } else {
+      if (detectedAssetId) {
+         // Auto-route straight to send if we know the asset
+         router.replace({
+           pathname: "/send",
+           params: { to: address, assetId: detectedAssetId }
+         });
+      } else {
+         router.replace({
+           pathname: "/(tabs)",
+           params: { scannedAddress: address, scanId: String(Date.now()) },
+         });
+      }
+    }
+  };
+
+  const pickImage = async () => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: false,
+        quality: 1,
+      });
+
+      if (!result.canceled && result.assets && result.assets.length > 0) {
+        const scannedResults = await scanFromURLAsync(result.assets[0].uri, ["qr"]);
+        if (scannedResults.length > 0) {
+          handleScanned({ data: scannedResults[0].data });
+        } else {
+          Alert.alert("No QR Code", "We couldn't find a QR code in that image.");
+        }
+      }
+    } catch (e) {
+      Alert.alert("Error", "Failed to scan image.");
+    }
   };
 
   return (
@@ -49,9 +111,14 @@ export default function ScanScreen() {
             <Text style={styles.eyebrow}>QR Scanner</Text>
             <Text style={styles.title}>Scan address</Text>
           </View>
-          <HapticTouchableOpacity style={styles.closeButton} onPress={closeScanner}>
-            <FontAwesome name="times" size={18} color="white" />
-          </HapticTouchableOpacity>
+          <View style={{ flexDirection: 'row', gap: 12 }}>
+            <HapticTouchableOpacity style={styles.closeButton} onPress={pickImage}>
+              <FontAwesome name="image" size={18} color="white" />
+            </HapticTouchableOpacity>
+            <HapticTouchableOpacity style={styles.closeButton} onPress={closeScanner}>
+              <FontAwesome name="times" size={18} color="white" />
+            </HapticTouchableOpacity>
+          </View>
         </View>
 
         <View style={styles.body}>

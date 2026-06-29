@@ -293,7 +293,7 @@ export default function DashboardScreen() {
       <BottomSheet visible={sendVisible} onClose={() => setSendVisible(false)}>
         <View style={[sheetBaseStyle, { paddingBottom: Math.max(insets.bottom, 24) }]}>
           <View style={styles.handleWrap}><View style={handleStyle as any} /></View>
-          <Text style={styles.sheetTitle}>Select Token</Text>
+          <Text style={styles.sheetTitle}>Select Network</Text>
           
           <ScrollView style={{ maxHeight: 400, marginTop: 12, marginBottom: -12 }}>
             {wallet.tokenBalances?.map((tb) => (
@@ -302,7 +302,7 @@ export default function DashboardScreen() {
                 style={styles.txCard}
                 onPress={() => {
                   setSendVisible(false);
-                  router.push({ pathname: '/send', params: { assetId: tb.id } } as any);
+                  router.push({ pathname: '/send', params: { assetId: tb.id, to: sendToAddress } } as any);
                 }}
               >
                 <View style={styles.networkLogoContainer}>
