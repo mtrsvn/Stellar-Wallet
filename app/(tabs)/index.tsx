@@ -228,7 +228,9 @@ export default function DashboardScreen() {
                     style={styles.txCard}
                     onPress={() => {
                       setReceiveNetworkId(nb.network.id);
-                      setReceiveStep('qr');
+                      setTimeout(() => {
+                        setReceiveStep('qr');
+                      }, 50);
                     }}
                   >
                     <View style={styles.networkLogoContainer}>
@@ -251,7 +253,9 @@ export default function DashboardScreen() {
           ) : (
             <>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                <HapticTouchableOpacity onPress={() => setReceiveStep('select')} style={{ padding: 8 }}>
+                <HapticTouchableOpacity onPress={() => {
+                  setTimeout(() => setReceiveStep('select'), 50);
+                }} style={{ padding: 8 }}>
                   <ChevronLeft size={24} color="white" />
                 </HapticTouchableOpacity>
                 <Text style={[styles.sheetTitle, { marginBottom: 0 }]}>Receive {selectedReceiveNetwork?.symbol}</Text>
