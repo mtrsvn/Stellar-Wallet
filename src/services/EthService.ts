@@ -23,6 +23,19 @@ export class EthService {
     }
   }
 
+  static async getTokenBalance(address: string, tokenAddress: string, decimals: number, network: Network): Promise<string> {
+    try {
+      const provider = this.getProvider(network.rpcUrl);
+      const abi = ["function balanceOf(address owner) view returns (uint256)"];
+      const contract = new ethers.Contract(tokenAddress, abi, provider);
+      const balance = await contract.balanceOf(address);
+      const formatted = ethers.formatUnits(balance, decimals);
+      return parseFloat(formatted).toFixed(6);
+    } catch {
+      return "0.000000";
+    }
+  }
+
   static async sendTransaction(
     privateKey: string,
     toAddress: string,

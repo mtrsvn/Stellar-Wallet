@@ -23,6 +23,7 @@ import { SettingsSheet } from '../src/components/SettingsSheet';
 import { WalletsSheet } from '../src/components/WalletsSheet';
 import { useWallet } from '../src/context/WalletContext';
 import { getNetworkIcon } from '../src/components/NetworkIcons';
+import { TokenListItem } from '../src/components/TokenListItem';
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
@@ -67,7 +68,7 @@ export default function DashboardScreen() {
     setRefreshing(false);
   }, [wallet]);
 
-  const selectedReceiveNetwork = wallet.networkBalances.find(n => n.network.id === receiveNetworkId)?.network;
+  const selectedReceiveNetwork = wallet.tokenBalances?.find(n => n.network.id === receiveNetworkId)?.network;
 
   const getReceiveAddress = () => {
     if (!selectedReceiveNetwork) return '';
@@ -148,33 +149,32 @@ export default function DashboardScreen() {
 
         <View style={styles.activitiesHeader}>
           <Text style={styles.activitiesTitle}>Your Assets</Text>
+          <TouchableOpacity onPress={() => router.push('/assets' as any)}>
+            <Text style={styles.viewAllText}>View All</Text>
+          </TouchableOpacity>
         </View>
 
         {wallet.isBalanceLoading ? (
           <Text style={{ color: 'white', textAlign: 'center' }}>Loading assets...</Text>
-        ) : wallet.networkBalances.length === 0 ? (
+        ) : wallet.tokenBalances && wallet.tokenBalances.length === 0 ? (
           <Text style={{ color: 'rgba(255,255,255,0.7)', textAlign: 'center' }}>No assets found</Text>
         ) : (
-          wallet.networkBalances.map((nb, idx) => (
-            <View key={idx} style={styles.txCard}>
-               <View style={styles.networkLogoContainer}>
-                 {getNetworkIcon(nb.network.symbol, 40) || (
-                   <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: nb.network.color, justifyContent: 'center', alignItems: 'center' }}>
-                     <Text style={{color: 'white', fontWeight: 'bold'}}>{nb.network.symbol[0]}</Text>
-                   </View>
-                 )}
-               </View>
-               <View style={styles.txInfo}>
-                 <Text style={styles.txTitle}>{nb.network.name}</Text>
-                 <Text style={styles.txSubtitle} numberOfLines={1}>{showBalances ? nb.balanceStr : '••••'}</Text>
-               </View>
-               <View style={styles.txAmounts}>
-                 <Text style={{ color: 'white', fontWeight: '600', fontSize: 16 }}>
-                   {showBalances ? `$${nb.usdValue.toFixed(2)}` : '••••'}
-                 </Text>
-               </View>
-            </View>
-          ))
+          wallet.tokenBalances?.slice(0, 5).map((tb, idx) => {
+            const itemWithHiddenBalance = {
+              ...tb,
+              balanceStr: showBalances ? tb.balanceStr : '••••',
+              usdValue: showBalances ? tb.usdValue : 0
+            };
+            return (
+              <View key={tb.id}>
+                {showBalances ? (
+                  <TokenListItem item={tb} />
+                ) : (
+                  <TokenListItem item={{...tb, balanceStr: '••••', usdValue: 0}} />
+                )}
+              </View>
+            );
+          })
         )}
 
         <View style={styles.activitiesHeader}>
@@ -189,7 +189,7 @@ export default function DashboardScreen() {
         ) : wallet.transactions.length === 0 ? (
           <Text style={{ color: 'rgba(255,255,255,0.7)', textAlign: 'center' }}>No recent activities</Text>
         ) : (
-          wallet.transactions.slice(0, 6).map((tx, idx) => {
+          wallet.transactions.slice(0, 5).map((tx, idx) => {
             let IconComponent = HelpCircle;
             if (tx.icon === 'ArrowDownLeft') IconComponent = ArrowDownLeft;
             if (tx.icon === 'ArrowUpRight') IconComponent = ArrowUpRight;
@@ -227,7 +227,7 @@ export default function DashboardScreen() {
               <Text style={styles.sheetTitle}>Choose Network</Text>
               
               <View style={{ marginTop: 12 }}>
-                {wallet.networkBalances.map((nb) => (
+                {wallet.tokenBalances?.filter(tb => tb.isNative).map((nb) => (
                   <TouchableOpacity
                     key={nb.network.id}
                     style={styles.txCard}
@@ -295,38 +295,51 @@ export default function DashboardScreen() {
         </View>
       </BottomSheet>
 
-      <BottomSheet visible={sendVisible} onClose={() => setSendVisible(false)} avoidKeyboard>
+      <BottomSheet visible={sendVisible} onClose={() => setSendVisible(false)}>
         <View style={[sheetBaseStyle, { paddingBottom: Math.max(insets.bottom, 24) }]}>
           <View style={styles.handleWrap}><View style={handleStyle as any} /></View>
-          <Text style={styles.sheetTitle}>Send Crypto</Text>
-
-          <Text style={styles.fieldLabel}>Recipient Address</Text>
-          <View style={styles.inputRow}>
-            <TextInput
-              style={styles.textInput}
-              placeholder="Address..."
-              placeholderTextColor="rgba(255,255,255,0.25)"
-              value={sendToAddress}
-              onChangeText={setSendToAddress}
-              autoCapitalize="none"
-              autoCorrect={false}
-            />
-            <TouchableOpacity style={styles.qrButton} onPress={openQrScanner}>
-              <QrCode size={20} color="white" />
-            </TouchableOpacity>
-          </View>
-
-          <TouchableOpacity style={styles.primaryButton} onPress={() => {
-            setSendVisible(false);
-            if (sendToAddress.trim()) {
-              router.push({ pathname: '/send', params: { to: sendToAddress.trim() } } as any);
-            }
-          }}>
-            <Text style={styles.primaryButtonText}>Continue</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.ghostButton} onPress={() => setSendVisible(false)}>
-            <Text style={styles.ghostButtonText}>Cancel</Text>
-          </TouchableOpacity>
+          <Text style={styles.sheetTitle}>Select Token</Text>
+          
+          <ScrollView style={{ maxHeight: 400, marginTop: 12 }}>
+            {wallet.tokenBalances?.map((tb) => (
+              <TouchableOpacity
+                key={tb.id}
+                style={styles.txCard}
+                onPress={() => {
+                  setSendVisible(false);
+                  router.push({ pathname: '/send', params: { assetId: tb.id } } as any);
+                }}
+              >
+                <View style={styles.networkLogoContainer}>
+                  {tb.isNative ? (
+                    getNetworkIcon(tb.network.symbol, 40)
+                  ) : (
+                    tb.token?.logoUrl ? (
+                      <Image source={{ uri: tb.token.logoUrl }} style={{ width: 40, height: 40, borderRadius: 20 }} />
+                    ) : (
+                      <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: '#333' }} />
+                    )
+                  )}
+                  {!tb.isNative && (
+                    <View style={{ position: 'absolute', bottom: -2, right: -2, borderRadius: 10, backgroundColor: '#1C1C1E' }}>
+                      {getNetworkIcon(tb.network.symbol, 16)}
+                    </View>
+                  )}
+                </View>
+                <View style={styles.txInfo}>
+                  <Text style={[styles.txTitle, { marginBottom: 2 }]}>
+                    {tb.isNative ? tb.network.name : tb.token?.name || 'Token'}
+                  </Text>
+                  <Text style={styles.txSubtitle}>
+                    {tb.isNative ? `${tb.balanceStr} ${tb.network.symbol}` : `${tb.balanceStr} ${tb.token?.symbol}`}
+                  </Text>
+                </View>
+                <View style={styles.txAmounts}>
+                  <ChevronRight color="rgba(255,255,255,0.3)" size={20} />
+                </View>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
       </BottomSheet>
     </SafeAreaView>
@@ -368,7 +381,7 @@ const styles = StyleSheet.create({
   viewAllText: { color: '#A855F7', fontWeight: '600' },
   txCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 16, marginBottom: 12 },
   txIconBox: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
-  networkLogoContainer: { width: 40, height: 40, borderRadius: 20, overflow: 'hidden', marginRight: 16, justifyContent: 'center', alignItems: 'center' },
+  networkLogoContainer: { width: 40, height: 40, borderRadius: 20, marginRight: 16, justifyContent: 'center', alignItems: 'center' },
   networkLogo: { width: 40, height: 40, resizeMode: 'cover' },
   txInfo: { flex: 1 },
   txTitle: { color: 'white', fontSize: 16, fontWeight: '600', marginBottom: 4 },

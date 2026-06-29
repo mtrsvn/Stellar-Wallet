@@ -6,6 +6,7 @@ import { BtcService } from '../services/BtcService';
 import { SolService } from '../services/SolService';
 import { PriceService } from '../services/PriceService';
 import { Network, getNetworksByMode } from '../utils/networks';
+import { Token, getTokensByNetworkId } from '../utils/tokens';
 
 export interface SavedWallet {
   id: string;
@@ -27,10 +28,14 @@ export interface Transaction {
   icon: string;
   from: string;
   networkId?: string;
+  hash?: string;
 }
 
-export interface NetworkBalance {
+export interface TokenBalance {
+  id: string;
+  isNative: boolean;
   network: Network;
+  token?: Token;
   balanceStr: string;
   balanceValue: number;
   usdValue: number;
@@ -46,7 +51,7 @@ interface WalletContextType {
   solAddress: string;
   isTestnet: boolean;
   setIsTestnet: (val: boolean) => void;
-  networkBalances: NetworkBalance[];
+  tokenBalances: TokenBalance[];
   totalUsdBalance: number;
   transactions: Transaction[];
   isBalanceLoading: boolean;
@@ -76,7 +81,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [solAddress, setSolAddress] = useState('');
 
   const [isTestnet, setIsTestnet] = useState(false);
-  const [networkBalances, setNetworkBalances] = useState<NetworkBalance[]>([]);
+  const [tokenBalances, setTokenBalances] = useState<TokenBalance[]>([]);
   const [totalUsdBalance, setTotalUsdBalance] = useState(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isBalanceLoading, setIsBalanceLoading] = useState(false);
@@ -170,11 +175,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setIsBalanceLoading(true);
     try {
       const activeNetworks = getNetworksByMode(isTestnet);
-      const coinIds = activeNetworks.map(n => n.coingeckoId);
+      let coinIds = activeNetworks.map(n => n.coingeckoId);
+      activeNetworks.forEach(net => {
+        getTokensByNetworkId(net.id).forEach(t => {
+          if (!coinIds.includes(t.coingeckoId)) coinIds.push(t.coingeckoId);
+        });
+      });
       const prices = await PriceService.fetchPrices(coinIds);
 
       let totalUsd = 0;
-      const balancesList: NetworkBalance[] = [];
+      const balancesList: TokenBalance[] = [];
 
       for (const net of activeNetworks) {
         const addr = getAddressForNetwork(net, addrs);
@@ -197,14 +207,48 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         
         totalUsd += usdVal;
         balancesList.push({
+          id: net.id,
+          isNative: true,
           network: net,
           balanceStr: balStr,
           balanceValue: numVal,
           usdValue: usdVal
         });
+
+        // Fetch tokens for this network
+        const networkTokens = getTokensByNetworkId(net.id);
+        for (const token of networkTokens) {
+          let tokenBalStr = '0.000000';
+          try {
+            if (net.type === 'EVM') {
+              tokenBalStr = await EthService.getTokenBalance(addr, token.address, token.decimals, net);
+            } else if (net.type === 'SOL') {
+              tokenBalStr = await SolService.getTokenBalance(addr, token.address, token.decimals, net);
+            }
+          } catch(e) {
+            console.error(`Failed to fetch token balance for ${token.symbol}:`, e);
+          }
+
+          const tNumVal = parseFloat(tokenBalStr) || 0;
+          const tUsdVal = tNumVal * (prices[token.coingeckoId] || 0);
+          
+          totalUsd += tUsdVal;
+          balancesList.push({
+            id: token.id,
+            isNative: false,
+            network: net,
+            token: token,
+            balanceStr: tNumVal > 0 ? `${tNumVal.toFixed(4)} ${token.symbol}` : `0.0000 ${token.symbol}`,
+            balanceValue: tNumVal,
+            usdValue: tUsdVal
+          });
+        }
       }
 
-      setNetworkBalances(balancesList);
+      // Sort by USD value descending
+      balancesList.sort((a, b) => b.usdValue - a.usdValue);
+
+      setTokenBalances(balancesList);
       setTotalUsdBalance(totalUsd);
     } catch (e) {
       console.error("fetchBalances error", e);
@@ -351,7 +395,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     <WalletContext.Provider value={{
       isLoading, isCreated, savedWallets, activeWalletId, 
       evmAddress, btcAddress, solAddress,
-      isTestnet, setIsTestnet: handleSetIsTestnet, networkBalances, totalUsdBalance,
+      isTestnet, setIsTestnet: handleSetIsTestnet, tokenBalances, totalUsdBalance,
       transactions, isBalanceLoading, isTransactionsLoading,
       savePasswordLocally, verifyPassword, markCreated,
       loadAccounts, refreshData, logout, removeActiveWallet, renameActiveWallet, switchWallet, addNewWallet,

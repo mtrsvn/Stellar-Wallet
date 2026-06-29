@@ -1,30 +1,34 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ScrollView } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { FontAwesome } from '@expo/vector-icons';
+import { ChevronDown } from 'lucide-react-native';
 import { GradientButton } from '../src/components/GradientButton';
 import { useWallet } from '../src/context/WalletContext';
 import { WalletCore } from '../src/utils/WalletCore';
 import { EthService } from '../src/services/EthService';
 import { ethers } from 'ethers';
 import { getNetworkIcon } from '../src/components/NetworkIcons';
+import { BottomSheet, handleStyle, sheetBaseStyle } from '../src/components/BottomSheet';
+import { TokenListItem } from '../src/components/TokenListItem';
 
 export default function SendScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const params = useLocalSearchParams();
   const wallet = useWallet();
   const [address, setAddress] = useState(params.to as string || '');
   const [amount, setAmount] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [selectedNetworkId, setSelectedNetworkId] = useState(wallet.networkBalances[0]?.network.id || '');
+  const [selectedAssetId, setSelectedAssetId] = useState(params.assetId as string || '');
 
-  const selectedNetworkBalance = wallet.networkBalances.find(n => n.network.id === selectedNetworkId);
+  const selectedAsset = wallet.tokenBalances?.find(t => t.id === selectedAssetId);
 
   const handleMax = () => {
-    if (selectedNetworkBalance && selectedNetworkBalance.balanceStr !== '0') {
+    if (selectedAsset && selectedAsset.balanceStr !== '0' && selectedAsset.balanceStr !== '0.000000') {
       // In a real app we need to subtract gas fees, but for simplicity here we just use the raw string
-      setAmount(selectedNetworkBalance.balanceStr);
+      setAmount(selectedAsset.balanceValue.toString());
     }
   };
 
@@ -32,7 +36,7 @@ export default function SendScreen() {
     const cleanAddress = address.trim();
     const cleanAmount = amount.replace(',', '.').trim();
 
-    if (!cleanAddress || !cleanAmount || !selectedNetworkBalance) {
+    if (!cleanAddress || !cleanAmount || !selectedAsset) {
       Alert.alert('Error', 'Please enter address, amount, and select an asset.');
       return;
     }
@@ -42,8 +46,13 @@ export default function SendScreen() {
       return;
     }
 
-    if (selectedNetworkBalance.network.type !== 'EVM') {
-      Alert.alert('Not Implemented', `Sending on ${selectedNetworkBalance.network.name} is not fully supported in this beta yet.`);
+    if (selectedAsset.network.type !== 'EVM') {
+      Alert.alert('Not Implemented', `Sending on ${selectedAsset.network.name} is not fully supported in this beta yet.`);
+      return;
+    }
+
+    if (!selectedAsset.isNative) {
+      Alert.alert('Not Implemented', 'Sending custom tokens is not yet supported in this beta. Please send native coins.');
       return;
     }
 
@@ -60,7 +69,7 @@ export default function SendScreen() {
       }
       
       const privateKey = WalletCore.getEvmPrivateKey(activeWallet.mnemonic, 0);
-      const result = await EthService.sendTransaction(privateKey, cleanAddress, cleanAmount, selectedNetworkBalance.network);
+      const result = await EthService.sendTransaction(privateKey, cleanAddress, cleanAmount, selectedAsset.network);
       
       if (result.success) {
         Alert.alert('Success', `Transaction Sent!\n\nHash:\n${result.hash}`, [
@@ -91,35 +100,30 @@ export default function SendScreen() {
         </View>
 
         <View style={styles.form}>
-          <Text style={styles.label}>Select Asset</Text>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.assetSelector}>
-            {wallet.networkBalances.map((nb) => {
-              const isSelected = selectedNetworkId === nb.network.id;
-              return (
-                <TouchableOpacity
-                  key={nb.network.id}
-                  style={[
-                    styles.assetBadge,
-                    isSelected ? styles.assetBadgeSelected : {},
-                    { borderColor: isSelected ? nb.network.color : 'rgba(255,255,255,0.1)' }
-                  ]}
-                  onPress={() => setSelectedNetworkId(nb.network.id)}
-                >
-                  <View style={{ marginRight: 8, width: 20, height: 20, borderRadius: 10, overflow: 'hidden' }}>
-                    {getNetworkIcon(nb.network.symbol, 20) || (
-                      <View style={{ flex: 1, backgroundColor: nb.network.color }} />
-                    )}
+          <Text style={styles.label}>Selected Token</Text>
+          <View style={styles.assetSelectButton}>
+            {selectedAsset ? (
+              <View style={styles.assetSelectContent}>
+                <View style={styles.assetSelectLeft}>
+                  <View style={{ marginRight: 12, width: 32, height: 32, borderRadius: 16, overflow: 'hidden' }}>
+                    {selectedAsset.isNative ? getNetworkIcon(selectedAsset.network.symbol, 32) : getNetworkIcon(selectedAsset.network.symbol, 32)}
                   </View>
-                  <Text style={[
-                    styles.assetBadgeText,
-                    isSelected ? { color: 'white' } : { color: 'rgba(255,255,255,0.6)' }
-                  ]}>
-                    {nb.network.name}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </ScrollView>
+                  <View>
+                    <Text style={styles.assetSelectTitle}>
+                      {selectedAsset.isNative ? selectedAsset.network.name : selectedAsset.token?.symbol || 'Token'}
+                    </Text>
+                    <Text style={styles.assetSelectSubtitle}>
+                      {selectedAsset.network.name} Network
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            ) : (
+              <View style={styles.assetSelectContent}>
+                <Text style={styles.assetSelectPlaceholder}>No token selected.</Text>
+              </View>
+            )}
+          </View>
 
           <View style={{ height: 24 }} />
 
@@ -127,7 +131,7 @@ export default function SendScreen() {
           <View style={styles.inputContainer}>
             <TextInput
               style={styles.input}
-              placeholder={selectedNetworkBalance?.network.type === 'EVM' ? "0x..." : "Address..."}
+              placeholder={selectedAsset?.network.type === 'EVM' ? "0x..." : "Address..."}
               placeholderTextColor="rgba(255,255,255,0.3)"
               value={address}
               onChangeText={setAddress}
@@ -139,9 +143,9 @@ export default function SendScreen() {
           <View style={{ height: 24 }} />
 
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 8 }}>
-            <Text style={[styles.label, { marginBottom: 0 }]}>Amount ({selectedNetworkBalance?.network.symbol || ''})</Text>
+            <Text style={[styles.label, { marginBottom: 0 }]}>Amount ({selectedAsset?.isNative ? selectedAsset.network.symbol : selectedAsset?.token?.symbol || ''})</Text>
             <Text style={styles.availableText}>
-              Available: {selectedNetworkBalance?.balanceStr || '0'}
+              Available: {selectedAsset?.balanceStr || '0'}
             </Text>
           </View>
 
@@ -176,11 +180,17 @@ const styles = StyleSheet.create({
   label: { color: 'rgba(255,255,255,0.7)', marginBottom: 12, fontSize: 14, fontWeight: '600', letterSpacing: 0.5 },
   inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 16, paddingHorizontal: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)' },
   input: { flex: 1, paddingVertical: 18, color: 'white', fontSize: 16 },
-  assetSelector: { flexGrow: 0, marginBottom: 4 },
-  assetBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 18, paddingVertical: 12, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, marginRight: 10 },
-  assetBadgeSelected: { backgroundColor: 'rgba(255,255,255,0.1)' },
-  assetBadgeText: { fontWeight: '600', fontSize: 15 },
-  badgeDot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
+  
+  assetSelectButton: { backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.05)', padding: 16 },
+  assetSelectContent: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  assetSelectLeft: { flexDirection: 'row', alignItems: 'center' },
+  assetSelectTitle: { color: 'white', fontSize: 16, fontWeight: '600' },
+  assetSelectSubtitle: { color: 'rgba(255,255,255,0.5)', fontSize: 13, marginTop: 2 },
+  assetSelectPlaceholder: { color: 'rgba(255,255,255,0.5)', fontSize: 16 },
+  
+  handleWrap: { alignItems: 'center', paddingVertical: 12 },
+  sheetTitle: { color: 'white', fontSize: 20, fontWeight: 'bold', marginBottom: 16, paddingHorizontal: 24 },
+  
   availableText: { color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: '500' },
   maxButton: { backgroundColor: 'rgba(168, 85, 247, 0.2)', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, marginLeft: 12 },
   maxButtonText: { color: '#A855F7', fontSize: 12, fontWeight: '700' },

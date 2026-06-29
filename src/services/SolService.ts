@@ -15,6 +15,27 @@ export class SolService {
     }
   }
 
+  static async getTokenBalance(address: string, tokenAddress: string, decimals: number, network: Network): Promise<string> {
+    try {
+      if (!address) return '0.000000';
+      const connection = new Connection(network.rpcUrl, 'confirmed');
+      const ownerPubKey = new PublicKey(address);
+      const mintPubKey = new PublicKey(tokenAddress);
+      
+      const response = await connection.getParsedTokenAccountsByOwner(ownerPubKey, { mint: mintPubKey });
+      if (response.value.length === 0) return '0.000000';
+      
+      let totalAmount = 0;
+      for (const account of response.value) {
+         totalAmount += account.account.data.parsed.info.tokenAmount.uiAmount || 0;
+      }
+      return totalAmount.toFixed(6);
+    } catch (e) {
+      console.error('SolService getTokenBalance Error:', e);
+      return '0.000000';
+    }
+  }
+
   static async getTransactions(address: string, network: Network): Promise<any[]> {
     try {
       if (!address) return [];
