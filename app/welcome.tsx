@@ -1,3 +1,4 @@
+import { HapticTouchableOpacity } from '../src/components/HapticTouchableOpacity';
 import React, { useState } from 'react';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -85,9 +86,9 @@ export default function WelcomeScreen() {
             />
 
             <GradientButton label="Continue" onPressed={handleCreateWallet} />
-            <TouchableOpacity onPress={closeCreateSheet} style={styles.cancelButton}>
+            <HapticTouchableOpacity onPress={closeCreateSheet} style={styles.cancelButton}>
               <Text style={styles.cancelText}>Cancel</Text>
-            </TouchableOpacity>
+            </HapticTouchableOpacity>
           </View>
       </BottomSheet>
 
@@ -107,9 +108,9 @@ export default function WelcomeScreen() {
             />
 
             <GradientButton label="Continue" onPressed={handleImportWallet} />
-            <TouchableOpacity onPress={closeImportSheet} style={styles.cancelButton}>
+            <HapticTouchableOpacity onPress={closeImportSheet} style={styles.cancelButton}>
               <Text style={styles.cancelText}>Cancel</Text>
-            </TouchableOpacity>
+            </HapticTouchableOpacity>
           </View>
       </BottomSheet>
     </SafeAreaView>

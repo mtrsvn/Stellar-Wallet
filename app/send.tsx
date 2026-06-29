@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, Alert, ScrollView } from 'react-native';
+import { HapticTouchableOpacity } from '../src/components/HapticTouchableOpacity';
+
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { FontAwesome } from '@expo/vector-icons';
@@ -92,9 +94,9 @@ export default function SendScreen() {
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView style={styles.content}>
         <View style={styles.header}>
-          <TouchableOpacity onPress={() => router.back()} style={{ width: 40, height: 40, justifyContent: 'center' }}>
+          <HapticTouchableOpacity onPress={() => router.back()} style={{ width: 40, height: 40, justifyContent: 'center' }}>
             <FontAwesome name="chevron-left" size={20} color="white" />
-          </TouchableOpacity>
+          </HapticTouchableOpacity>
           <Text style={styles.headerTitle}>Send Crypto</Text>
           <View style={{ width: 40 }} />
         </View>
@@ -158,9 +160,9 @@ export default function SendScreen() {
               onChangeText={setAmount}
               keyboardType="decimal-pad"
             />
-            <TouchableOpacity style={styles.maxButton} onPress={handleMax}>
+            <HapticTouchableOpacity style={styles.maxButton} onPress={handleMax}>
               <Text style={styles.maxButtonText}>MAX</Text>
-            </TouchableOpacity>
+            </HapticTouchableOpacity>
           </View>
 
           <View style={{ height: 40 }} />

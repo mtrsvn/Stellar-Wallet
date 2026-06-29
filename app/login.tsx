@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, Image, TextInput, TouchableOpacity, ActivityIndicator, Keyboard, Platform, Alert } from 'react-native';
+import { HapticTouchableOpacity } from '../src/components/HapticTouchableOpacity';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { FontAwesome } from '@expo/vector-icons';
@@ -82,9 +84,9 @@ export default function LoginScreen() {
             onChangeText={t => { setPassword(t); setError(''); }}
             onSubmitEditing={tryLogin}
           />
-          <TouchableOpacity onPress={() => setObscure(!obscure)} style={styles.iconButton}>
+          <HapticTouchableOpacity onPress={() => setObscure(!obscure)} style={styles.iconButton}>
             <FontAwesome name={obscure ? 'eye-slash' : 'eye'} size={18} color="rgba(255,255,255,0.5)" />
-          </TouchableOpacity>
+          </HapticTouchableOpacity>
         </View>
         <View style={{ height: 20 }}>
           {error ? <Text style={styles.errorText}>{error}</Text> : null}
@@ -98,9 +100,9 @@ export default function LoginScreen() {
           )}
         </View>
 
-        <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotPasswordButton}>
+        <HapticTouchableOpacity onPress={handleForgotPassword} style={styles.forgotPasswordButton}>
           <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
-        </TouchableOpacity>
+        </HapticTouchableOpacity>
         
         <View style={{ flex: 1 }} />
       </View>

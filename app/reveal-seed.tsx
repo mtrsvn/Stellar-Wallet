@@ -1,6 +1,8 @@
 import 'react-native-get-random-values';
 import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
+import { HapticTouchableOpacity } from '../src/components/HapticTouchableOpacity';
+
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { FontAwesome } from '@expo/vector-icons';
@@ -45,22 +47,22 @@ export default function RevealSeedScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.content}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <HapticTouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <FontAwesome name="chevron-left" size={20} color="white" />
-        </TouchableOpacity>
+        </HapticTouchableOpacity>
         
         <Text style={styles.title}>Recovery Phrase</Text>
         <Text style={styles.subtitle}>Tap to reveal each word. Write them down in order.</Text>
 
         <View style={styles.grid}>
           {words.map((word, index) => (
-            <TouchableOpacity key={index} style={styles.wordTile} onPress={() => toggleReveal(index)}>
+            <HapticTouchableOpacity key={index} style={styles.wordTile} onPress={() => toggleReveal(index)}>
               {revealed[index] ? (
                 <Text style={styles.wordText}>{index + 1}. {word}</Text>
               ) : (
                 <Text style={styles.hiddenText}>Tap to reveal</Text>
               )}
-            </TouchableOpacity>
+            </HapticTouchableOpacity>
           ))}
         </View>
 

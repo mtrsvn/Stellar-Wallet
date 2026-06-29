@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, Keyboard, Platform, TouchableOpacity, ScrollView } from 'react-native';
+import { HapticTouchableOpacity } from '../src/components/HapticTouchableOpacity';
+
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { FontAwesome } from '@expo/vector-icons';
@@ -71,9 +73,9 @@ export default function SecuritySetupScreen() {
           },
         ]}
       >
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <HapticTouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <FontAwesome name="chevron-left" size={20} color="white" />
-        </TouchableOpacity>
+        </HapticTouchableOpacity>
 
         <Text style={styles.title}>Create Password</Text>
         <Text style={styles.subtitle}>Protect your wallet with a local password</Text>
@@ -88,9 +90,9 @@ export default function SecuritySetupScreen() {
               value={password}
               onChangeText={(t) => { setPassword(t); setError(''); }}
             />
-            <TouchableOpacity onPress={() => setObscurePassword(!obscurePassword)} style={styles.iconButton}>
+            <HapticTouchableOpacity onPress={() => setObscurePassword(!obscurePassword)} style={styles.iconButton}>
               <FontAwesome name={obscurePassword ? 'eye-slash' : 'eye'} size={18} color="rgba(255,255,255,0.5)" />
-            </TouchableOpacity>
+            </HapticTouchableOpacity>
         </View>
 
         <View style={{ height: 24, justifyContent: 'center', marginBottom: 16 }}>
@@ -111,9 +113,9 @@ export default function SecuritySetupScreen() {
               value={confirmPassword}
               onChangeText={(t) => { setConfirmPassword(t); setError(''); }}
             />
-            <TouchableOpacity onPress={() => setObscureConfirm(!obscureConfirm)} style={styles.iconButton}>
+            <HapticTouchableOpacity onPress={() => setObscureConfirm(!obscureConfirm)} style={styles.iconButton}>
               <FontAwesome name={obscureConfirm ? 'eye-slash' : 'eye'} size={18} color="rgba(255,255,255,0.5)" />
-            </TouchableOpacity>
+            </HapticTouchableOpacity>
         </View>
 
         <View style={{ height: 24, justifyContent: 'center', marginBottom: 16 }}>

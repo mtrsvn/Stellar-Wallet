@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity } from 'react-native';
+import { HapticTouchableOpacity } from '../src/components/HapticTouchableOpacity';
+
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { FontAwesome } from '@expo/vector-icons';
 import { GradientButton } from '../src/components/GradientButton';
@@ -18,9 +20,9 @@ export default function SeedRevealIntroScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <TouchableOpacity style={styles.backButton} onPress={() => router.back()}>
+        <HapticTouchableOpacity style={styles.backButton} onPress={() => router.back()}>
           <FontAwesome name="chevron-left" size={20} color="white" />
-        </TouchableOpacity>
+        </HapticTouchableOpacity>
         
         <Text style={styles.title}>Secure Your Wallet</Text>
         <Text style={styles.subtitle}>

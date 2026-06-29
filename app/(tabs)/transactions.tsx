@@ -1,3 +1,4 @@
+import { HapticTouchableOpacity } from '../../src/components/HapticTouchableOpacity';
 import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import {
@@ -104,9 +105,9 @@ function TxModal({ selectedTx, onClose }: { selectedTx: any; onClose: () => void
           <Text style={styles.label}>From</Text>
           <Text style={styles.value}>{selectedTx?.from || 'Unknown'}</Text>
 
-          <TouchableOpacity onPress={handleClose} style={styles.closeButton} activeOpacity={0.7}>
+          <HapticTouchableOpacity onPress={handleClose} style={styles.closeButton} activeOpacity={0.7}>
             <Text style={styles.closeText}>Close</Text>
-          </TouchableOpacity>
+          </HapticTouchableOpacity>
         </Animated.View>
       </View>
     </Modal>
@@ -132,7 +133,7 @@ export default function TransactionsScreen() {
     if (item.icon === 'ArrowUpRight') IconComponent = ArrowUpRight;
 
     return (
-      <TouchableOpacity style={styles.txCard} onPress={() => setSelectedTx(item)}>
+      <HapticTouchableOpacity style={styles.txCard} onPress={() => setSelectedTx(item)}>
         <View style={styles.txIconBox}>
           <IconComponent color="white" size={20} />
         </View>
@@ -143,7 +144,7 @@ export default function TransactionsScreen() {
         <View style={styles.txAmounts}>
           <Text style={styles.txDate}>{item.date}</Text>
         </View>
-      </TouchableOpacity>
+      </HapticTouchableOpacity>
     );
   };
 

@@ -1,3 +1,4 @@
+import { HapticTouchableOpacity } from '../src/components/HapticTouchableOpacity';
 import { FontAwesome } from "@expo/vector-icons";
 import { CameraView, useCameraPermissions } from "expo-camera";
 import { LinearGradient } from "expo-linear-gradient";
@@ -48,9 +49,9 @@ export default function ScanScreen() {
             <Text style={styles.eyebrow}>QR Scanner</Text>
             <Text style={styles.title}>Scan address</Text>
           </View>
-          <TouchableOpacity style={styles.closeButton} onPress={closeScanner}>
+          <HapticTouchableOpacity style={styles.closeButton} onPress={closeScanner}>
             <FontAwesome name="times" size={18} color="white" />
-          </TouchableOpacity>
+          </HapticTouchableOpacity>
         </View>
 
         <View style={styles.body}>
@@ -91,12 +92,12 @@ export default function ScanScreen() {
               <Text style={styles.permissionText}>
                 Grant permission so we can scan your QR code instantly.
               </Text>
-              <TouchableOpacity
+              <HapticTouchableOpacity
                 style={styles.permissionButton}
                 onPress={handleRequestPermission}
               >
                 <Text style={styles.permissionButtonText}>Allow Camera</Text>
-              </TouchableOpacity>
+              </HapticTouchableOpacity>
             </View>
           )}
         </View>

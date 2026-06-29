@@ -1,6 +1,8 @@
 import { FontAwesome } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View, TextInput, Keyboard } from 'react-native';
+import { HapticTouchableOpacity } from '../../src/components/HapticTouchableOpacity';
+
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useWallet } from '../context/WalletContext';
 import { BottomSheet, handleStyle, sheetBaseStyle } from './BottomSheet';
@@ -71,7 +73,7 @@ export function WalletsSheet({ visible, onClose }: Props) {
           {wallet.savedWallets.map((w, index) => {
             const isActive = w.id === wallet.activeWalletId;
             return (
-              <TouchableOpacity
+              <HapticTouchableOpacity
                 key={w.id}
                 style={[styles.accountRow, isActive && styles.activeAccountRow]}
                 onPress={() => handleSwitchAccount(w.id)}
@@ -88,30 +90,30 @@ export function WalletsSheet({ visible, onClose }: Props) {
                 {isActive && (
                   <FontAwesome name="check" size={16} color="#9C2CF0" style={styles.checkIcon} />
                 )}
-              </TouchableOpacity>
+              </HapticTouchableOpacity>
             );
           })}
 
-          <TouchableOpacity style={styles.addAccountButton} onPress={() => startAction('create')}>
+          <HapticTouchableOpacity style={styles.addAccountButton} onPress={() => startAction('create')}>
             <View style={styles.addIconWrap}>
               <FontAwesome name="plus" size={16} color="white" />
             </View>
             <Text style={styles.addAccountText}>Create New Wallet</Text>
-          </TouchableOpacity>
+          </HapticTouchableOpacity>
 
-          <TouchableOpacity style={styles.addAccountButton} onPress={() => startAction('import')}>
+          <HapticTouchableOpacity style={styles.addAccountButton} onPress={() => startAction('import')}>
             <View style={styles.addIconWrap}>
               <FontAwesome name="download" size={16} color="white" />
             </View>
             <Text style={styles.addAccountText}>Import Existing Wallet</Text>
-          </TouchableOpacity>
+          </HapticTouchableOpacity>
         </ScrollView>
         </>
         ) : (
           <View>
-            <TouchableOpacity onPress={goBackToList} style={{ marginBottom: 16, width: 40, height: 40, justifyContent: 'center' }}>
+            <HapticTouchableOpacity onPress={goBackToList} style={{ marginBottom: 16, width: 40, height: 40, justifyContent: 'center' }}>
               <FontAwesome name="chevron-left" size={20} color="white" />
-            </TouchableOpacity>
+            </HapticTouchableOpacity>
             <Text style={styles.title}>Name Your Wallet</Text>
             <Text style={{ color: 'rgba(255,255,255,0.7)', marginBottom: 24, fontSize: 15 }}>Enter a name so you can easily identify this wallet later.</Text>
 

@@ -1,3 +1,4 @@
+import { HapticTouchableOpacity } from '../../src/components/HapticTouchableOpacity';
 import React, { useState } from 'react';
 import {
     Alert,
@@ -87,22 +88,22 @@ export function SettingsSheet({ visible, onClose, onLogoutSuccess }: Props) {
 
 
 
-            <TouchableOpacity style={styles.actionButton} onPress={() => {
+            <HapticTouchableOpacity style={styles.actionButton} onPress={() => {
               setNewName(activeWallet?.name || '');
               setStep('rename');
             }} activeOpacity={0.8}>
               <Text style={styles.actionText}>Rename Wallet</Text>
-            </TouchableOpacity>
+            </HapticTouchableOpacity>
 
-            <TouchableOpacity style={styles.logoutButton} onPress={handleRemoveWallet} activeOpacity={0.8}>
+            <HapticTouchableOpacity style={styles.logoutButton} onPress={handleRemoveWallet} activeOpacity={0.8}>
               <Text style={styles.logoutText}>Remove Wallet</Text>
-            </TouchableOpacity>
+            </HapticTouchableOpacity>
           </>
         ) : (
           <View>
-            <TouchableOpacity onPress={goBackToMenu} style={{ marginBottom: 16, width: 40, height: 40, justifyContent: 'center' }}>
+            <HapticTouchableOpacity onPress={goBackToMenu} style={{ marginBottom: 16, width: 40, height: 40, justifyContent: 'center' }}>
               <FontAwesome name="chevron-left" size={20} color="white" />
-            </TouchableOpacity>
+            </HapticTouchableOpacity>
 
             <Text style={{ color: 'white', fontSize: 20, fontWeight: '700', marginBottom: 8 }}>Rename Wallet</Text>
             <Text style={{ color: 'rgba(255,255,255,0.7)', marginBottom: 24 }}>Update how this wallet appears in your list.</Text>

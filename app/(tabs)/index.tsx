@@ -1,3 +1,4 @@
+import { HapticTouchableOpacity } from '../../src/components/HapticTouchableOpacity';
 import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -102,12 +103,12 @@ export default function DashboardScreen() {
       >
         <LinearGradient colors={['#9C2CF0', '#7A19D9']} style={styles.balanceCard}>
           <View style={styles.cardHeader}>
-            <TouchableOpacity onPress={() => setWalletsVisible(true)} style={styles.iconBox}>
+            <HapticTouchableOpacity onPress={() => setWalletsVisible(true)} style={styles.iconBox}>
               <User size={20} color="white" />
-            </TouchableOpacity>
-            <TouchableOpacity onPress={() => setSettingsVisible(true)} style={styles.iconBox}>
+            </HapticTouchableOpacity>
+            <HapticTouchableOpacity onPress={() => setSettingsVisible(true)} style={styles.iconBox}>
               <Settings size={20} color="white" />
-            </TouchableOpacity>
+            </HapticTouchableOpacity>
           </View>
 
           <View style={styles.balanceContainer}>
@@ -116,13 +117,13 @@ export default function DashboardScreen() {
             ) : (
               <Text style={styles.balanceText}>{displayUsdText}</Text>
             )}
-            <TouchableOpacity onPress={() => setShowBalances(!showBalances)} style={styles.eyeButton}>
+            <HapticTouchableOpacity onPress={() => setShowBalances(!showBalances)} style={styles.eyeButton}>
               {showBalances ? (
                 <EyeOff size={20} color="rgba(255,255,255,0.7)" />
               ) : (
                 <Eye size={20} color="rgba(255,255,255,0.7)" />
               )}
-            </TouchableOpacity>
+            </HapticTouchableOpacity>
           </View>
 
           <View style={styles.usdContainer}>
@@ -136,14 +137,14 @@ export default function DashboardScreen() {
           </View>
 
           <View style={styles.actionsContainer}>
-            <TouchableOpacity style={styles.actionButton} onPress={() => setSendVisible(true)}>
+            <HapticTouchableOpacity style={styles.actionButton} onPress={() => setSendVisible(true)}>
               <ArrowUpRight size={16} color="white" />
               <Text style={styles.actionText}>Send</Text>
-            </TouchableOpacity>
-            <TouchableOpacity style={styles.actionButton} onPress={() => setReceiveVisible(true)}>
+            </HapticTouchableOpacity>
+            <HapticTouchableOpacity style={styles.actionButton} onPress={() => setReceiveVisible(true)}>
               <ArrowDownLeft size={16} color="white" />
               <Text style={styles.actionText}>Receive</Text>
-            </TouchableOpacity>
+            </HapticTouchableOpacity>
           </View>
         </LinearGradient>
 
@@ -189,7 +190,7 @@ export default function DashboardScreen() {
             if (tx.icon === 'ArrowUpRight') IconComponent = ArrowUpRight;
 
             return (
-              <TouchableOpacity key={idx} style={styles.txCard}>
+              <HapticTouchableOpacity key={idx} style={styles.txCard}>
                 <View style={styles.txIconBox}>
                   <IconComponent color="white" size={20} />
                 </View>
@@ -200,7 +201,7 @@ export default function DashboardScreen() {
                 <View style={styles.txAmounts}>
                   <Text style={styles.txDate}>{tx.date}</Text>
                 </View>
-              </TouchableOpacity>
+              </HapticTouchableOpacity>
             );
           })
         )}
@@ -222,7 +223,7 @@ export default function DashboardScreen() {
               
               <View style={{ marginTop: 12, marginBottom: -12 }}>
                 {wallet.tokenBalances?.filter(tb => tb.isNative).map((nb) => (
-                  <TouchableOpacity
+                  <HapticTouchableOpacity
                     key={nb.network.id}
                     style={styles.txCard}
                     onPress={() => {
@@ -243,16 +244,16 @@ export default function DashboardScreen() {
                     <View style={styles.txAmounts}>
                       <ChevronRight color="rgba(255,255,255,0.3)" size={20} />
                     </View>
-                  </TouchableOpacity>
+                  </HapticTouchableOpacity>
                 ))}
               </View>
             </>
           ) : (
             <>
               <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                <TouchableOpacity onPress={() => setReceiveStep('select')} style={{ padding: 8 }}>
+                <HapticTouchableOpacity onPress={() => setReceiveStep('select')} style={{ padding: 8 }}>
                   <ChevronLeft size={24} color="white" />
-                </TouchableOpacity>
+                </HapticTouchableOpacity>
                 <Text style={[styles.sheetTitle, { marginBottom: 0 }]}>Receive {selectedReceiveNetwork?.symbol}</Text>
                 <View style={{ width: 34 }} />
               </View>
@@ -267,7 +268,7 @@ export default function DashboardScreen() {
                 Your {selectedReceiveNetwork?.name || ''} Address
               </Text>
               
-              <TouchableOpacity style={styles.addressBox} onPress={copyWalletAddress} disabled={!currentReceiveAddress} activeOpacity={0.7}>
+              <HapticTouchableOpacity style={styles.addressBox} onPress={copyWalletAddress} disabled={!currentReceiveAddress} activeOpacity={0.7}>
                 <View style={styles.addressTextWrapper}>
                   <Text style={styles.addressText} numberOfLines={2} ellipsizeMode="middle">
                     {currentReceiveAddress || 'No address yet'}
@@ -276,7 +277,7 @@ export default function DashboardScreen() {
                 <View style={styles.copyButtonBox}>
                   <Copy size={20} color={currentReceiveAddress ? '#A855F7' : 'rgba(255,255,255,0.35)'} />
                 </View>
-              </TouchableOpacity>
+              </HapticTouchableOpacity>
 
               <View style={styles.warningBox}>
                 <Text style={styles.warningText}>
@@ -296,7 +297,7 @@ export default function DashboardScreen() {
           
           <ScrollView style={{ maxHeight: 400, marginTop: 12, marginBottom: -12 }}>
             {wallet.tokenBalances?.map((tb) => (
-              <TouchableOpacity
+              <HapticTouchableOpacity
                 key={tb.id}
                 style={styles.txCard}
                 onPress={() => {
@@ -331,7 +332,7 @@ export default function DashboardScreen() {
                 <View style={styles.txAmounts}>
                   <ChevronRight color="rgba(255,255,255,0.3)" size={20} />
                 </View>
-              </TouchableOpacity>
+              </HapticTouchableOpacity>
             ))}
           </ScrollView>
         </View>
