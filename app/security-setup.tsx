@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, TextInput, Keyboard, Platform, TouchableOpacity, ScrollView } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { FontAwesome } from '@expo/vector-icons';
 import { GradientButton } from '../src/components/GradientButton';
 import { useWallet } from '../src/context/WalletContext';
@@ -9,6 +9,7 @@ import { useKeyboardHeight } from '../src/hooks/useKeyboardHeight';
 
 export default function SecuritySetupScreen() {
   const router = useRouter();
+  const params = useLocalSearchParams();
   const wallet = useWallet();
   const insets = useSafeAreaInsets();
   const keyboardHeight = useKeyboardHeight();
@@ -47,7 +48,13 @@ export default function SecuritySetupScreen() {
     await new Promise(resolve => setTimeout(resolve, 150));
 
     await wallet.savePasswordLocally(password);
-    router.push('/seed-reveal-intro');
+    
+    const nextPath = params.next as string;
+    if (nextPath) {
+      router.push({ pathname: nextPath, params: { name: params.name } } as any);
+    } else {
+      router.push({ pathname: '/seed-reveal-intro', params: { name: params.name } } as any);
+    }
   };
 
   return (

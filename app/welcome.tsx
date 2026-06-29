@@ -39,13 +39,13 @@ export default function WelcomeScreen() {
   const handleCreateWallet = () => {
     Keyboard.dismiss();
     setCreateWalletVisible(false);
-    router.push('/security-setup' as any);
+    router.push({ pathname: '/security-setup', params: { name: walletName } } as any);
   };
 
   const handleImportWallet = () => {
     Keyboard.dismiss();
     setImportWalletVisible(false);
-    router.push('/import-wallet' as any);
+    router.push({ pathname: '/security-setup', params: { next: '/import-wallet', name: walletName } } as any);
   };
 
   return (
