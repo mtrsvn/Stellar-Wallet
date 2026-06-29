@@ -1,5 +1,43 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
+
+const safeSetItemAsync = async (key: string, value: string) => {
+  if (Platform.OS === 'web') {
+    try {
+      localStorage.setItem(key, value);
+    } catch (e) {
+      console.error('localStorage set error', e);
+    }
+  } else {
+    await SecureStore.setItemAsync(key, value);
+  }
+};
+
+const safeGetItemAsync = async (key: string) => {
+  if (Platform.OS === 'web') {
+    try {
+      return localStorage.getItem(key);
+    } catch (e) {
+      console.error('localStorage get error', e);
+      return null;
+    }
+  } else {
+    return await SecureStore.getItemAsync(key);
+  }
+};
+
+const safeDeleteItemAsync = async (key: string) => {
+  if (Platform.OS === 'web') {
+    try {
+      localStorage.removeItem(key);
+    } catch (e) {
+      console.error('localStorage remove error', e);
+    }
+  } else {
+    await SecureStore.deleteItemAsync(key);
+  }
+};
 import { WalletCore } from '../utils/WalletCore';
 import { EthService } from '../services/EthService';
 import { BtcService } from '../services/BtcService';
@@ -99,14 +137,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const initWallet = async () => {
     try {
-      const created = await SecureStore.getItemAsync('wallet_created');
+      const created = await safeGetItemAsync('wallet_created');
       setIsCreated(created === 'true');
       
-      const testnetPref = await SecureStore.getItemAsync('is_testnet');
+      const testnetPref = await safeGetItemAsync('is_testnet');
       if (testnetPref) setIsTestnet(testnetPref === 'true');
 
       let wallets: SavedWallet[] = [];
-      const storedWalletsStr = await SecureStore.getItemAsync('saved_wallets');
+      const storedWalletsStr = await safeGetItemAsync('saved_wallets');
       if (storedWalletsStr) {
         wallets = JSON.parse(storedWalletsStr);
         // Migrate old wallets if they lack btc/sol addresses
@@ -122,20 +160,20 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           return w;
         });
       } else {
-        const oldSeed = await SecureStore.getItemAsync('seed_phrase');
+        const oldSeed = await safeGetItemAsync('seed_phrase');
         if (oldSeed) {
           const evm = WalletCore.getEvmAddress(oldSeed);
           const btc = WalletCore.getBtcAddress(oldSeed);
           const sol = WalletCore.getSolanaAddress(oldSeed);
           wallets = [{ id: '1', name: 'Wallet 1', mnemonic: oldSeed, evmAddress: evm, btcAddress: btc, solAddress: sol }];
-          await SecureStore.setItemAsync('saved_wallets', JSON.stringify(wallets));
+          await safeSetItemAsync('saved_wallets', JSON.stringify(wallets));
         }
       }
       
       setSavedWallets(wallets);
       
       if (created === 'true' && wallets.length > 0) {
-        const activeId = await SecureStore.getItemAsync('active_wallet_id') || wallets[0].id;
+        const activeId = await safeGetItemAsync('active_wallet_id') || wallets[0].id;
         setActiveWalletId(activeId);
         const activeWallet = wallets.find(w => w.id === activeId) || wallets[0];
         
@@ -154,7 +192,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const handleSetIsTestnet = async (val: boolean) => {
     setIsTestnet(val);
-    await SecureStore.setItemAsync('is_testnet', val ? 'true' : 'false');
+    await safeSetItemAsync('is_testnet', val ? 'true' : 'false');
   };
 
   const loadAccounts = async () => {};
@@ -307,10 +345,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     };
     
     const newWallets = [...savedWallets, newWallet];
-    await SecureStore.setItemAsync('saved_wallets', JSON.stringify(newWallets));
+    await safeSetItemAsync('saved_wallets', JSON.stringify(newWallets));
     setSavedWallets(newWallets);
     
-    await SecureStore.setItemAsync('active_wallet_id', newId);
+    await safeSetItemAsync('active_wallet_id', newId);
     setActiveWalletId(newId);
     setEvmAddress(evm);
     setBtcAddress(btc);
@@ -322,7 +360,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     const wallet = savedWallets.find(w => w.id === id);
     if (!wallet) return;
     
-    await SecureStore.setItemAsync('active_wallet_id', id);
+    await safeSetItemAsync('active_wallet_id', id);
     setActiveWalletId(id);
     setEvmAddress(wallet.evmAddress);
     setBtcAddress(wallet.btcAddress);
@@ -331,16 +369,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   };
 
   const savePasswordLocally = async (password: string) => {
-    await SecureStore.setItemAsync('wallet_password', password);
+    await safeSetItemAsync('wallet_password', password);
   };
 
   const verifyPassword = async (password: string): Promise<boolean> => {
-    const stored = await SecureStore.getItemAsync('wallet_password');
+    const stored = await safeGetItemAsync('wallet_password');
     return stored === password;
   };
 
   const markCreated = async () => {
-    await SecureStore.setItemAsync('wallet_created', 'true');
+    await safeSetItemAsync('wallet_created', 'true');
     setIsCreated(true);
   };
 
@@ -354,7 +392,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const renameActiveWallet = async (newName: string) => {
     if (!activeWalletId) return;
     const newWallets = savedWallets.map(w => w.id === activeWalletId ? { ...w, name: newName } : w);
-    await SecureStore.setItemAsync('saved_wallets', JSON.stringify(newWallets));
+    await safeSetItemAsync('saved_wallets', JSON.stringify(newWallets));
     setSavedWallets(newWallets);
   };
 
@@ -367,7 +405,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       await logout();
       return true;
     } else {
-      await SecureStore.setItemAsync('saved_wallets', JSON.stringify(newWallets));
+      await safeSetItemAsync('saved_wallets', JSON.stringify(newWallets));
       setSavedWallets(newWallets);
       await switchWallet(newWallets[0].id);
       return false;
@@ -375,11 +413,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   };
 
   const logout = async () => {
-    await SecureStore.deleteItemAsync('wallet_created');
-    await SecureStore.deleteItemAsync('seed_phrase');
-    await SecureStore.deleteItemAsync('wallet_password');
-    await SecureStore.deleteItemAsync('saved_wallets');
-    await SecureStore.deleteItemAsync('active_wallet_id');
+    await safeDeleteItemAsync('wallet_created');
+    await safeDeleteItemAsync('seed_phrase');
+    await safeDeleteItemAsync('wallet_password');
+    await safeDeleteItemAsync('saved_wallets');
+    await safeDeleteItemAsync('active_wallet_id');
     setIsCreated(false);
     setSavedWallets([]);
     setActiveWalletId(null);
