@@ -53,8 +53,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: 4,
-    paddingBottom: 16,
+    paddingVertical: 16,
   },
   headerTitle: {
     color: 'white',
