@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, Image, TextInput, TouchableOpacity, ActivityIndicator, Keyboard, Platform } from 'react-native';
+import { View, Text, StyleSheet, Image, TextInput, TouchableOpacity, ActivityIndicator, Keyboard, Platform, Alert } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { FontAwesome } from '@expo/vector-icons';
@@ -38,6 +38,24 @@ export default function LoginScreen() {
     } else {
       setError('Incorrect password');
     }
+  };
+
+  const handleForgotPassword = () => {
+    Alert.alert(
+      "Forgot Password?",
+      "If you've lost your password, the only way to recover your funds is to delete the current wallet and import it again using your Seed Phrase.\n\nAre you sure you want to delete this wallet?",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Delete Wallet", 
+          style: "destructive", 
+          onPress: async () => {
+            await wallet.logout();
+            router.replace('/' as any);
+          }
+        }
+      ]
+    );
   };
 
   return (
@@ -79,6 +97,10 @@ export default function LoginScreen() {
             <GradientButton label="Unlock Wallet" onPressed={tryLogin} />
           )}
         </View>
+
+        <TouchableOpacity onPress={handleForgotPassword} style={styles.forgotPasswordButton}>
+          <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+        </TouchableOpacity>
         
         <View style={{ flex: 1 }} />
       </View>
@@ -141,5 +163,15 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 4,
     marginLeft: 4,
+  },
+  forgotPasswordButton: {
+    marginTop: 20,
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  forgotPasswordText: {
+    color: '#9929EA',
+    fontSize: 15,
+    fontWeight: '600',
   },
 });
