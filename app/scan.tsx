@@ -8,20 +8,21 @@ import {
     Text,
     TouchableOpacity,
     View,
+    Linking,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function ScanScreen() {
   const router = useRouter();
   const [permission, requestPermission] = useCameraPermissions();
-  const requestedOnce = useRef(false);
 
-  useEffect(() => {
-    if (!permission || permission.granted || requestedOnce.current) return;
-
-    requestedOnce.current = true;
-    requestPermission();
-  }, [permission, requestPermission]);
+  const handleRequestPermission = async () => {
+    if (permission?.status === "denied" && !permission.canAskAgain) {
+      Linking.openSettings();
+    } else {
+      await requestPermission();
+    }
+  };
 
   const closeScanner = () => {
     router.back();
@@ -92,7 +93,7 @@ export default function ScanScreen() {
               </Text>
               <TouchableOpacity
                 style={styles.permissionButton}
-                onPress={requestPermission}
+                onPress={handleRequestPermission}
               >
                 <Text style={styles.permissionButtonText}>Allow Camera</Text>
               </TouchableOpacity>

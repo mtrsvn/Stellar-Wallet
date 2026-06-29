@@ -93,7 +93,7 @@ export default function DashboardScreen() {
 
     for (let i = 0; i < Math.min(wallet.transactions.length, 6); i++) {
       const tx = wallet.transactions[i];
-      const valStr = tx.subtitle.split(' ')[0];
+      const valStr = (tx.subtitle || '').split(' ')[0];
       const val = parseFloat(valStr) || 0;
 
       if (tx.title === 'Sent ETH') {
