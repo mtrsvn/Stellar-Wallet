@@ -2,15 +2,21 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import * as SecureStore from 'expo-secure-store';
 import { WalletCore } from '../utils/WalletCore';
 import { EthService } from '../services/EthService';
+import { BtcService } from '../services/BtcService';
+import { SolService } from '../services/SolService';
+import { PriceService } from '../services/PriceService';
+import { Network, getNetworksByMode } from '../utils/networks';
 
 export interface SavedWallet {
   id: string;
   name: string;
   mnemonic: string;
-  address: string;
+  evmAddress: string;
+  btcAddress: string;
+  solAddress: string;
 }
 
-interface Transaction {
+export interface Transaction {
   title: string;
   date: string;
   dateTime?: string;
@@ -20,6 +26,14 @@ interface Transaction {
   amountColor: string;
   icon: string;
   from: string;
+  networkId?: string;
+}
+
+export interface NetworkBalance {
+  network: Network;
+  balanceStr: string;
+  balanceValue: number;
+  usdValue: number;
 }
 
 interface WalletContextType {
@@ -27,8 +41,13 @@ interface WalletContextType {
   isCreated: boolean;
   savedWallets: SavedWallet[];
   activeWalletId: string | null;
-  address: string;
-  balance: string;
+  evmAddress: string;
+  btcAddress: string;
+  solAddress: string;
+  isTestnet: boolean;
+  setIsTestnet: (val: boolean) => void;
+  networkBalances: NetworkBalance[];
+  totalUsdBalance: number;
   transactions: Transaction[];
   isBalanceLoading: boolean;
   isTransactionsLoading: boolean;
@@ -52,8 +71,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [savedWallets, setSavedWallets] = useState<SavedWallet[]>([]);
   const [activeWalletId, setActiveWalletId] = useState<string | null>(null);
   
-  const [address, setAddress] = useState('');
-  const [balance, setBalance] = useState('');
+  const [evmAddress, setEvmAddress] = useState('');
+  const [btcAddress, setBtcAddress] = useState('');
+  const [solAddress, setSolAddress] = useState('');
+
+  const [isTestnet, setIsTestnet] = useState(false);
+  const [networkBalances, setNetworkBalances] = useState<NetworkBalance[]>([]);
+  const [totalUsdBalance, setTotalUsdBalance] = useState(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isBalanceLoading, setIsBalanceLoading] = useState(false);
   const [isTransactionsLoading, setIsTransactionsLoading] = useState(false);
@@ -62,21 +86,43 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     initWallet();
   }, []);
 
+  useEffect(() => {
+    if (evmAddress || btcAddress || solAddress) {
+      loadWalletData({ evmAddress, btcAddress, solAddress });
+    }
+  }, [isTestnet]);
+
   const initWallet = async () => {
     try {
       const created = await SecureStore.getItemAsync('wallet_created');
       setIsCreated(created === 'true');
       
+      const testnetPref = await SecureStore.getItemAsync('is_testnet');
+      if (testnetPref) setIsTestnet(testnetPref === 'true');
+
       let wallets: SavedWallet[] = [];
       const storedWalletsStr = await SecureStore.getItemAsync('saved_wallets');
       if (storedWalletsStr) {
         wallets = JSON.parse(storedWalletsStr);
+        // Migrate old wallets if they lack btc/sol addresses
+        wallets = wallets.map(w => {
+          if (!w.btcAddress || !w.solAddress) {
+            return {
+              ...w,
+              evmAddress: w.evmAddress || (w as any).address || WalletCore.getEvmAddress(w.mnemonic),
+              btcAddress: WalletCore.getBtcAddress(w.mnemonic),
+              solAddress: WalletCore.getSolanaAddress(w.mnemonic)
+            };
+          }
+          return w;
+        });
       } else {
-        // Migration from old version
         const oldSeed = await SecureStore.getItemAsync('seed_phrase');
         if (oldSeed) {
-          const oldAddress = WalletCore.deriveAddresses(oldSeed, 1)[0];
-          wallets = [{ id: '1', name: 'Wallet 1', mnemonic: oldSeed, address: oldAddress }];
+          const evm = WalletCore.getEvmAddress(oldSeed);
+          const btc = WalletCore.getBtcAddress(oldSeed);
+          const sol = WalletCore.getSolanaAddress(oldSeed);
+          wallets = [{ id: '1', name: 'Wallet 1', mnemonic: oldSeed, evmAddress: evm, btcAddress: btc, solAddress: sol }];
           await SecureStore.setItemAsync('saved_wallets', JSON.stringify(wallets));
         }
       }
@@ -87,8 +133,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         const activeId = await SecureStore.getItemAsync('active_wallet_id') || wallets[0].id;
         setActiveWalletId(activeId);
         const activeWallet = wallets.find(w => w.id === activeId) || wallets[0];
-        setAddress(activeWallet.address);
-        await loadWalletData(activeWallet.address);
+        
+        setEvmAddress(activeWallet.evmAddress);
+        setBtcAddress(activeWallet.btcAddress);
+        setSolAddress(activeWallet.solAddress);
+        
+        await loadWalletData(activeWallet);
       }
     } catch (e) {
       console.error('initWallet error:', e);
@@ -97,32 +147,99 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const loadAccounts = async () => {
-    // Left for compatibility during initialization
+  const handleSetIsTestnet = async (val: boolean) => {
+    setIsTestnet(val);
+    await SecureStore.setItemAsync('is_testnet', val ? 'true' : 'false');
   };
 
-  const loadWalletData = async (addr: string) => {
-    fetchBalance(addr);
-    fetchTransactions(addr);
+  const loadAccounts = async () => {};
+
+  const loadWalletData = async (addrs: { evmAddress: string, btcAddress: string, solAddress: string }) => {
+    fetchBalancesAndPrices(addrs);
+    fetchTransactions(addrs);
   };
 
-  const fetchBalance = async (addr: string) => {
+  const getAddressForNetwork = (network: Network, addrs: { evmAddress: string, btcAddress: string, solAddress: string }) => {
+    if (network.type === 'EVM') return addrs.evmAddress;
+    if (network.type === 'BTC') return addrs.btcAddress;
+    if (network.type === 'SOL') return addrs.solAddress;
+    return '';
+  };
+
+  const fetchBalancesAndPrices = async (addrs: { evmAddress: string, btcAddress: string, solAddress: string }) => {
     setIsBalanceLoading(true);
     try {
-      const bal = await EthService.getBalance(addr);
-      setBalance(bal);
+      const activeNetworks = getNetworksByMode(isTestnet);
+      const coinIds = activeNetworks.map(n => n.coingeckoId);
+      const prices = await PriceService.fetchPrices(coinIds);
+
+      let totalUsd = 0;
+      const balancesList: NetworkBalance[] = [];
+
+      for (const net of activeNetworks) {
+        const addr = getAddressForNetwork(net, addrs);
+        let balStr = '0.0';
+        
+        try {
+          if (net.type === 'EVM') {
+            balStr = await EthService.getBalance(addr, net);
+          } else if (net.type === 'BTC') {
+            balStr = await BtcService.getBalance(addr, net);
+          } else if (net.type === 'SOL') {
+            balStr = await SolService.getBalance(addr, net);
+          }
+        } catch(e) {
+          console.error(`Failed to fetch balance for ${net.name}:`, e);
+        }
+
+        const numVal = parseFloat(balStr.split(' ')[0]) || 0;
+        const usdVal = numVal * (prices[net.coingeckoId] || 0);
+        
+        totalUsd += usdVal;
+        balancesList.push({
+          network: net,
+          balanceStr: balStr,
+          balanceValue: numVal,
+          usdValue: usdVal
+        });
+      }
+
+      setNetworkBalances(balancesList);
+      setTotalUsdBalance(totalUsd);
     } catch (e) {
-      setBalance('0.000000 ETH');
+      console.error("fetchBalances error", e);
     } finally {
       setIsBalanceLoading(false);
     }
   };
 
-  const fetchTransactions = async (addr: string) => {
+  const fetchTransactions = async (addrs: { evmAddress: string, btcAddress: string, solAddress: string }) => {
     setIsTransactionsLoading(true);
     try {
-      const txs = await EthService.getTransactions(addr);
-      setTransactions(txs);
+      const activeNetworks = getNetworksByMode(isTestnet);
+      let allTxs: Transaction[] = [];
+
+      for (const net of activeNetworks) {
+        const addr = getAddressForNetwork(net, addrs);
+        try {
+          if (net.type === 'EVM') {
+            const txs = await EthService.getTransactions(addr, net);
+            allTxs = [...allTxs, ...txs.map(t => ({ ...t, networkId: net.id }))];
+          } else if (net.type === 'BTC') {
+            const txs = await BtcService.getTransactions(addr, net);
+            allTxs = [...allTxs, ...txs.map(t => ({ ...t, networkId: net.id }))];
+          } else if (net.type === 'SOL') {
+            const txs = await SolService.getTransactions(addr, net);
+            allTxs = [...allTxs, ...txs.map(t => ({ ...t, networkId: net.id }))];
+          }
+        } catch(e) {
+          console.error(`Failed to fetch txs for ${net.name}:`, e);
+        }
+      }
+
+      // Sort globally
+      allTxs.sort((a, b) => new Date(b.dateTime || 0).getTime() - new Date(a.dateTime || 0).getTime());
+      setTransactions(allTxs);
     } catch (e) {
       setTransactions([]);
     } finally {
@@ -131,13 +248,18 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   };
 
   const addNewWallet = async (mnemonic: string, name?: string) => {
-    const newAddress = WalletCore.deriveAddresses(mnemonic, 1)[0];
+    const evm = WalletCore.getEvmAddress(mnemonic);
+    const btc = WalletCore.getBtcAddress(mnemonic);
+    const sol = WalletCore.getSolanaAddress(mnemonic);
+    
     const newId = Date.now().toString();
     const newWallet: SavedWallet = {
       id: newId,
       name: name || `Wallet ${savedWallets.length + 1}`,
       mnemonic,
-      address: newAddress,
+      evmAddress: evm,
+      btcAddress: btc,
+      solAddress: sol,
     };
     
     const newWallets = [...savedWallets, newWallet];
@@ -146,8 +268,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     
     await SecureStore.setItemAsync('active_wallet_id', newId);
     setActiveWalletId(newId);
-    setAddress(newWallet.address);
-    await loadWalletData(newWallet.address);
+    setEvmAddress(evm);
+    setBtcAddress(btc);
+    setSolAddress(sol);
+    await loadWalletData(newWallet);
   };
 
   const switchWallet = async (id: string) => {
@@ -156,8 +280,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     
     await SecureStore.setItemAsync('active_wallet_id', id);
     setActiveWalletId(id);
-    setAddress(wallet.address);
-    await loadWalletData(wallet.address);
+    setEvmAddress(wallet.evmAddress);
+    setBtcAddress(wallet.btcAddress);
+    setSolAddress(wallet.solAddress);
+    await loadWalletData(wallet);
   };
 
   const savePasswordLocally = async (password: string) => {
@@ -175,9 +301,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshData = async () => {
-    if (address) {
-      await fetchBalance(address);
-      await fetchTransactions(address);
+    if (evmAddress) {
+      await fetchBalancesAndPrices({ evmAddress, btcAddress, solAddress });
+      await fetchTransactions({ evmAddress, btcAddress, solAddress });
     }
   };
 
@@ -195,12 +321,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     
     if (newWallets.length === 0) {
       await logout();
-      return true; // true means the user is fully logged out (no wallets left)
+      return true;
     } else {
       await SecureStore.setItemAsync('saved_wallets', JSON.stringify(newWallets));
       setSavedWallets(newWallets);
       await switchWallet(newWallets[0].id);
-      return false; // false means they still have a wallet, so don't redirect to login
+      return false;
     }
   };
 
@@ -213,14 +339,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setIsCreated(false);
     setSavedWallets([]);
     setActiveWalletId(null);
-    setAddress('');
-    setBalance('');
+    setEvmAddress('');
+    setBtcAddress('');
+    setSolAddress('');
+    setTotalUsdBalance(0);
+    setNetworkBalances([]);
     setTransactions([]);
   };
 
   return (
     <WalletContext.Provider value={{
-      isLoading, isCreated, savedWallets, activeWalletId, address, balance,
+      isLoading, isCreated, savedWallets, activeWalletId, 
+      evmAddress, btcAddress, solAddress,
+      isTestnet, setIsTestnet: handleSetIsTestnet, networkBalances, totalUsdBalance,
       transactions, isBalanceLoading, isTransactionsLoading,
       savePasswordLocally, verifyPassword, markCreated,
       loadAccounts, refreshData, logout, removeActiveWallet, renameActiveWallet, switchWallet, addNewWallet,

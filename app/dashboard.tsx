@@ -2,7 +2,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Wallet, Settings, Eye, EyeOff, ArrowUpRight, ArrowDownLeft, Copy, QrCode, HelpCircle } from 'lucide-react-native';
+import { Wallet, Settings, Eye, EyeOff, ArrowUpRight, ArrowDownLeft, Copy, QrCode, HelpCircle, ChevronRight, ChevronLeft } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
   Platform,
@@ -14,16 +14,15 @@ import {
   TouchableOpacity,
   View,
   Dimensions,
+  Image,
 } from 'react-native';
-import { LineChart } from 'react-native-chart-kit';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import { BottomSheet, handleStyle, sheetBaseStyle } from '../src/components/BottomSheet';
 import { QRDisplay } from '../src/components/QRDisplay';
 import { SettingsSheet } from '../src/components/SettingsSheet';
 import { WalletsSheet } from '../src/components/WalletsSheet';
 import { useWallet } from '../src/context/WalletContext';
-import { PriceService } from '../src/services/PriceService';
-import { formatDateTime } from '../src/utils/formatDateTime';
+import { getNetworkIcon } from '../src/components/NetworkIcons';
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
@@ -33,91 +32,17 @@ export default function DashboardScreen() {
   const searchParams = useLocalSearchParams<{ scannedAddress?: string; scanId?: string }>();
 
   const [showBalances, setShowBalances] = useState(true);
-  const [ethPriceUsd, setEthPriceUsd] = useState(PriceService.fallbackEthUsd);
-
-
   const [refreshing, setRefreshing] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [receiveVisible, setReceiveVisible] = useState(false);
   const [sendVisible, setSendVisible] = useState(false);
   const [walletsVisible, setWalletsVisible] = useState(false);
   const [sendToAddress, setSendToAddress] = useState('');
-  const [scrubIndex, setScrubIndex] = useState<number | null>(null);
-  const [isScrubbing, setIsScrubbing] = useState(false);
-  const scrubIndexRef = useRef<number | null>(null);
-
-  const handleScrub = useCallback((evt: any) => {
-    const x = evt.nativeEvent.locationX;
-    const cardWidth = Dimensions.get('window').width - 32;
-    const segmentWidth = cardWidth / 6;
-    let idx = Math.round(x / segmentWidth);
-    if (idx < 0) idx = 0;
-    if (idx > 6) idx = 6;
-    
-    if (scrubIndexRef.current !== idx) {
-      Haptics.selectionAsync();
-      scrubIndexRef.current = idx;
-      setScrubIndex(idx);
-    }
-  }, []);
-
-  const handleScrubStart = useCallback((evt: any) => {
-    setIsScrubbing(true);
-    handleScrub(evt);
-  }, [handleScrub]);
-
-  const clearScrub = useCallback(() => {
-    setIsScrubbing(false);
-    if (scrubIndexRef.current !== null) {
-      Haptics.selectionAsync(); // Vibrate slightly when snapping back to current balance
-      scrubIndexRef.current = null;
-      setScrubIndex(null);
-    }
-  }, []);
-
-  const nowLabel = useMemo(() => formatDateTime(new Date()), []);
-
-  const { sparklineData, sparklineDates } = useMemo(() => {
-    const ethAmountStr = wallet.balance ? wallet.balance.split(' ')[0] : '0.0';
-    let currentBal = parseFloat(ethAmountStr) || 0.0;
-
-    const flatData = [currentBal, currentBal, currentBal, currentBal, currentBal, currentBal, currentBal];
-    const flatDates = [nowLabel, nowLabel, nowLabel, nowLabel, nowLabel, nowLabel, nowLabel];
-
-    if (!wallet.transactions || wallet.transactions.length === 0) {
-      return { sparklineData: flatData, sparklineDates: flatDates };
-    }
-
-    const history = [currentBal];
-    const dates = [nowLabel];
-
-    for (let i = 0; i < Math.min(wallet.transactions.length, 6); i++) {
-      const tx = wallet.transactions[i];
-      const valStr = (tx.subtitle || '').split(' ')[0];
-      const val = parseFloat(valStr) || 0;
-
-      if (tx.title === 'Sent ETH') {
-        currentBal = currentBal + val;
-      } else if (tx.title === 'Received ETH') {
-        currentBal = currentBal - val;
-      }
-      history.push(Math.max(0, currentBal));
-      dates.push(tx.dateTime ?? tx.date);
-    }
-
-    while (history.length < 7) {
-      history.push(history[history.length - 1]);
-      dates.push(dates[dates.length - 1]);
-    }
-
-    return {
-      sparklineData: history.reverse(),
-      sparklineDates: dates.reverse(),
-    };
-  }, [wallet.balance, wallet.transactions, nowLabel]);
+  
+  const [receiveNetworkId, setReceiveNetworkId] = useState<string>('');
+  const [receiveStep, setReceiveStep] = useState<'select' | 'qr'>('select');
 
   useEffect(() => {
-    loadPrice();
     wallet.loadAccounts();
   }, []);
 
@@ -136,55 +61,42 @@ export default function DashboardScreen() {
     setSendVisible(true);
   }, [searchParams.scannedAddress, searchParams.scanId]);
 
-  const loadPrice = async () => {
-    const price = await PriceService.fetchEthUsd();
-    setEthPriceUsd(price);
-  };
-
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await wallet.refreshData();
-    await loadPrice();
     setRefreshing(false);
   }, [wallet]);
 
-  const copyWalletAddress = useCallback(async () => {
-    if (!wallet.address) return;
+  const selectedReceiveNetwork = wallet.networkBalances.find(n => n.network.id === receiveNetworkId)?.network;
 
-    await Clipboard.setStringAsync(wallet.address);
-  }, [wallet.address]);
+  const getReceiveAddress = () => {
+    if (!selectedReceiveNetwork) return '';
+    if (selectedReceiveNetwork.type === 'EVM') return wallet.evmAddress;
+    if (selectedReceiveNetwork.type === 'BTC') return wallet.btcAddress;
+    if (selectedReceiveNetwork.type === 'SOL') return wallet.solAddress;
+    return '';
+  };
+
+  const currentReceiveAddress = getReceiveAddress();
+
+  const copyWalletAddress = useCallback(async () => {
+    if (!currentReceiveAddress) return;
+    await Clipboard.setStringAsync(currentReceiveAddress);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [currentReceiveAddress]);
 
   const openQrScanner = useCallback(() => {
     setSendVisible(false);
     router.push('/scan');
   }, [router]);
 
-  const ethAmountStr = wallet.balance ? wallet.balance.split(' ')[0] : '0.0';
-  const ethAmount = parseFloat(ethAmountStr) || 0.0;
-  const displayBalance = wallet.balance || '0.000000 ETH';
-
-  const currentScrubValue = scrubIndex !== null && showBalances && sparklineData[scrubIndex] !== undefined
-    ? sparklineData[scrubIndex]
-    : null;
-
-  const displayBalanceText = currentScrubValue !== null 
-    ? `${currentScrubValue.toFixed(4)} ETH` 
-    : (showBalances ? displayBalance : '••••••');
-
-  const displayUsdValue = currentScrubValue !== null 
-    ? (currentScrubValue * ethPriceUsd).toFixed(2)
-    : (ethAmount * ethPriceUsd).toFixed(2);
-    
-  const displayUsdText = showBalances ? `$${displayUsdValue}` : '**';
-
-  const scrubDateLabel =
-    scrubIndex !== null && sparklineDates[scrubIndex] !== undefined ? sparklineDates[scrubIndex] : null;
+  const displayUsdValue = wallet.totalUsdBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const displayUsdText = showBalances ? `$${displayUsdValue}` : '••••••';
 
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <ScrollView
         contentContainerStyle={styles.scrollContent}
-        scrollEnabled={!isScrubbing}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="white" />}
       >
         <LinearGradient colors={['#9C2CF0', '#7A19D9']} style={styles.balanceCard}>
@@ -201,7 +113,7 @@ export default function DashboardScreen() {
             {wallet.isBalanceLoading ? (
               <Text style={styles.balanceText}>...</Text>
             ) : (
-              <Text style={styles.balanceText}>{displayBalanceText}</Text>
+              <Text style={styles.balanceText}>{displayUsdText}</Text>
             )}
             <TouchableOpacity onPress={() => setShowBalances(!showBalances)} style={styles.eyeButton}>
               {showBalances ? (
@@ -213,76 +125,13 @@ export default function DashboardScreen() {
           </View>
 
           <View style={styles.usdContainer}>
-            <Text style={styles.usdText}>{displayUsdText}</Text>
-            <Text
-              style={[styles.scrubDateText, !scrubDateLabel && styles.scrubDateHidden]}
-              numberOfLines={1}
-            >
-              {scrubDateLabel ?? '\u00A0'}
-            </Text>
+            <Text style={styles.usdText}>{wallet.isTestnet ? 'Testnet Portfolio' : 'Total Portfolio Balance'}</Text>
           </View>
 
           <View style={{ marginLeft: -36, marginTop: 16, marginBottom: 16, width: Dimensions.get('window').width + 48 }}>
-            {showBalances ? (
-              <LineChart
-                data={{
-                  labels: ["", "", "", "", "", "", ""],
-                  datasets: [{ data: showBalances ? sparklineData : [5, 5, 5, 5, 5, 5, 5] }]
-                }}
-                width={Dimensions.get('window').width + 48} // Precisely calculated to hide internal padding
-                height={60} 
-                withDots={false}
-                withInnerLines={false}
-                withOuterLines={false}
-                withVerticalLines={false}
-                withHorizontalLines={false}
-                withHorizontalLabels={false}
-                withVerticalLabels={false}
-                withShadow={false}
-                chartConfig={{
-                  backgroundColor: 'transparent',
-                  backgroundGradientFrom: '#9C2CF0',
-                  backgroundGradientFromOpacity: 0,
-                  backgroundGradientTo: '#7A19D9',
-                  backgroundGradientToOpacity: 0,
-                  color: (opacity = 1) => `rgba(255, 255, 255, ${opacity})`,
-                  strokeWidth: 3,
-                  propsForBackgroundLines: { strokeWidth: 0 },
-                  fillShadowGradientFrom: '#FFFFFF',
-                  fillShadowGradientFromOpacity: 0.4,
-                  fillShadowGradientTo: '#FFFFFF',
-                  fillShadowGradientToOpacity: 0.0,
-                }}
-                bezier
-                style={{
-                  paddingRight: 0,
-                  paddingBottom: 10,
-                  paddingTop: 10,
-                }}
-              />
-            ) : (
-              <View style={{ height: 60, justifyContent: 'center' }}>
-                <View style={{ height: 3, backgroundColor: 'rgba(255,255,255,0.7)', width: Dimensions.get('window').width }} />
-              </View>
-            )}
-            
-            {showBalances && (
-              <View 
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  bottom: 0,
-                  left: 16, // Precisely align touch zone with the drawn SVG line start
-                  width: Dimensions.get('window').width - 32, // Exact card width
-                }}
-                onStartShouldSetResponder={() => true}
-                onMoveShouldSetResponder={() => true}
-                onResponderGrant={handleScrubStart}
-                onResponderMove={handleScrub}
-                onResponderRelease={clearScrub}
-                onResponderTerminate={clearScrub}
-              />
-            )}
+             <View style={{ height: 60, justifyContent: 'center' }}>
+                <View style={{ height: 3, backgroundColor: 'rgba(255,255,255,0.3)', width: Dimensions.get('window').width }} />
+             </View>
           </View>
 
           <View style={styles.actionsContainer}>
@@ -296,6 +145,37 @@ export default function DashboardScreen() {
             </TouchableOpacity>
           </View>
         </LinearGradient>
+
+        <View style={styles.activitiesHeader}>
+          <Text style={styles.activitiesTitle}>Your Assets</Text>
+        </View>
+
+        {wallet.isBalanceLoading ? (
+          <Text style={{ color: 'white', textAlign: 'center' }}>Loading assets...</Text>
+        ) : wallet.networkBalances.length === 0 ? (
+          <Text style={{ color: 'rgba(255,255,255,0.7)', textAlign: 'center' }}>No assets found</Text>
+        ) : (
+          wallet.networkBalances.map((nb, idx) => (
+            <View key={idx} style={styles.txCard}>
+               <View style={styles.networkLogoContainer}>
+                 {getNetworkIcon(nb.network.symbol, 40) || (
+                   <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: nb.network.color, justifyContent: 'center', alignItems: 'center' }}>
+                     <Text style={{color: 'white', fontWeight: 'bold'}}>{nb.network.symbol[0]}</Text>
+                   </View>
+                 )}
+               </View>
+               <View style={styles.txInfo}>
+                 <Text style={styles.txTitle}>{nb.network.name}</Text>
+                 <Text style={styles.txSubtitle} numberOfLines={1}>{showBalances ? nb.balanceStr : '••••'}</Text>
+               </View>
+               <View style={styles.txAmounts}>
+                 <Text style={{ color: 'white', fontWeight: '600', fontSize: 16 }}>
+                   {showBalances ? `$${nb.usdValue.toFixed(2)}` : '••••'}
+                 </Text>
+               </View>
+            </View>
+          ))
+        )}
 
         <View style={styles.activitiesHeader}>
           <Text style={styles.activitiesTitle}>Recent Activities</Text>
@@ -335,41 +215,96 @@ export default function DashboardScreen() {
       <SettingsSheet visible={settingsVisible} onClose={() => setSettingsVisible(false)} onLogoutSuccess={() => router.replace('/welcome' as any)} />
       <WalletsSheet visible={walletsVisible} onClose={() => setWalletsVisible(false)} />
 
-      <BottomSheet visible={receiveVisible} onClose={() => setReceiveVisible(false)}>
+      <BottomSheet visible={receiveVisible} onClose={() => {
+        setReceiveVisible(false);
+        setTimeout(() => setReceiveStep('select'), 300);
+      }}>
         <View style={[sheetBaseStyle, { paddingBottom: Math.max(insets.bottom, 24) }]}>
           <View style={styles.handleWrap}><View style={handleStyle as any} /></View>
-          <Text style={styles.sheetTitle}>Receive ETH</Text>
+          
+          {receiveStep === 'select' ? (
+            <>
+              <Text style={styles.sheetTitle}>Choose Network</Text>
+              
+              <View style={{ marginTop: 12 }}>
+                {wallet.networkBalances.map((nb) => (
+                  <TouchableOpacity
+                    key={nb.network.id}
+                    style={styles.txCard}
+                    onPress={() => {
+                      setReceiveNetworkId(nb.network.id);
+                      setReceiveStep('qr');
+                    }}
+                  >
+                    <View style={styles.networkLogoContainer}>
+                      {getNetworkIcon(nb.network.symbol, 40) || (
+                        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: nb.network.color, justifyContent: 'center', alignItems: 'center' }}>
+                          <Text style={{color: 'white', fontWeight: 'bold'}}>{nb.network.symbol[0]}</Text>
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.txInfo}>
+                      <Text style={[styles.txTitle, { marginBottom: 0 }]}>{nb.network.name}</Text>
+                    </View>
+                    <View style={styles.txAmounts}>
+                      <ChevronRight color="rgba(255,255,255,0.3)" size={20} />
+                    </View>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </>
+          ) : (
+            <>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+                <TouchableOpacity onPress={() => setReceiveStep('select')} style={{ padding: 8 }}>
+                  <ChevronLeft size={24} color="white" />
+                </TouchableOpacity>
+                <Text style={[styles.sheetTitle, { marginBottom: 0 }]}>Receive {selectedReceiveNetwork?.symbol}</Text>
+                <View style={{ width: 34 }} />
+              </View>
 
-          <View style={styles.qrWrapper}>
-            <QRDisplay address={wallet.address ? wallet.address : 'loading'} />
-          </View>
+              <View style={styles.qrWrapper}>
+                <View style={{ padding: 12, backgroundColor: 'white', borderRadius: 24, shadowColor: selectedReceiveNetwork?.color || '#000', shadowOpacity: 0.3, shadowRadius: 20, elevation: 10 }}>
+                  <QRDisplay address={currentReceiveAddress ? currentReceiveAddress : 'loading'} />
+                </View>
+              </View>
 
-          <Text style={styles.addressLabel}>Your Wallet Address</Text>
-          <View style={styles.addressBox}>
-            <Text style={styles.addressText} numberOfLines={1} ellipsizeMode="middle" selectable>
-              {wallet.address || 'No address yet'}
-            </Text>
-            <TouchableOpacity style={styles.copyButton} onPress={copyWalletAddress} disabled={!wallet.address}>
-              <Copy size={16} color={wallet.address ? 'white' : 'rgba(255,255,255,0.35)'} />
-            </TouchableOpacity>
-          </View>
+              <Text style={styles.addressLabel}>
+                Your {selectedReceiveNetwork?.name || ''} Address
+              </Text>
+              
+              <TouchableOpacity style={styles.addressBox} onPress={copyWalletAddress} disabled={!currentReceiveAddress} activeOpacity={0.7}>
+                <View style={styles.addressTextWrapper}>
+                  <Text style={styles.addressText} numberOfLines={2} ellipsizeMode="middle">
+                    {currentReceiveAddress || 'No address yet'}
+                  </Text>
+                </View>
+                <View style={styles.copyButtonBox}>
+                  <Copy size={20} color={currentReceiveAddress ? '#A855F7' : 'rgba(255,255,255,0.35)'} />
+                </View>
+              </TouchableOpacity>
 
-          <TouchableOpacity style={styles.closeButton} onPress={() => setReceiveVisible(false)}>
-            <Text style={styles.closeButtonText}>Close</Text>
-          </TouchableOpacity>
+              <View style={styles.warningBox}>
+                <Text style={styles.warningText}>
+                  Send only {selectedReceiveNetwork?.symbol} to this address. Sending any other asset will result in permanent loss.
+                </Text>
+              </View>
+            </>
+          )}
+
         </View>
       </BottomSheet>
 
       <BottomSheet visible={sendVisible} onClose={() => setSendVisible(false)} avoidKeyboard>
         <View style={[sheetBaseStyle, { paddingBottom: Math.max(insets.bottom, 24) }]}>
           <View style={styles.handleWrap}><View style={handleStyle as any} /></View>
-          <Text style={styles.sheetTitle}>Send ETH</Text>
+          <Text style={styles.sheetTitle}>Send Crypto</Text>
 
           <Text style={styles.fieldLabel}>Recipient Address</Text>
           <View style={styles.inputRow}>
             <TextInput
               style={styles.textInput}
-              placeholder="0x..."
+              placeholder="Address..."
               placeholderTextColor="rgba(255,255,255,0.25)"
               value={sendToAddress}
               onChangeText={setSendToAddress}
@@ -417,7 +352,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'flex-start',
     marginTop: 4,
-    height: 52,
   },
   usdText: {
     color: 'rgba(255,255,255,0.6)',
@@ -426,17 +360,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     height: 20,
   },
-  scrubDateText: {
-    color: 'rgba(255,255,255,0.45)',
-    textAlign: 'center',
-    fontSize: 11,
-    lineHeight: 16,
-    height: 16,
-    marginTop: 8,
-    width: '100%',
-    paddingHorizontal: 8,
-  },
-  scrubDateHidden: { opacity: 0 },
   actionsContainer: { flexDirection: 'row', marginTop: 20, gap: 12 },
   actionButton: { flex: 1, backgroundColor: 'rgba(255,255,255,0.15)', flexDirection: 'row', justifyContent: 'center', alignItems: 'center', paddingVertical: 14, borderRadius: 14, gap: 8 },
   actionText: { color: 'white', fontWeight: '600', fontSize: 15 },
@@ -445,6 +368,8 @@ const styles = StyleSheet.create({
   viewAllText: { color: '#A855F7', fontWeight: '600' },
   txCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 16, marginBottom: 12 },
   txIconBox: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  networkLogoContainer: { width: 40, height: 40, borderRadius: 20, overflow: 'hidden', marginRight: 16, justifyContent: 'center', alignItems: 'center' },
+  networkLogo: { width: 40, height: 40, resizeMode: 'cover' },
   txInfo: { flex: 1 },
   txTitle: { color: 'white', fontSize: 16, fontWeight: '600', marginBottom: 4 },
   txSubtitle: { color: 'rgba(255,255,255,0.7)', fontSize: 11 },
@@ -452,11 +377,14 @@ const styles = StyleSheet.create({
   txDate: { color: 'rgba(255,255,255,0.5)', fontSize: 13 },
   handleWrap: { alignItems: 'center', paddingVertical: 12 },
   sheetTitle: { fontSize: 20, fontWeight: '700', color: 'white', marginBottom: 20, textAlign: 'center' },
-  qrWrapper: { alignItems: 'center', backgroundColor: 'white', alignSelf: 'center', borderRadius: 20, padding: 16, marginBottom: 20 },
-  addressLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: '600', letterSpacing: 0.8, marginBottom: 8 },
-  addressBox: { backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 12, paddingHorizontal: 14, paddingVertical: 12, marginBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 12 },
-  addressText: { flex: 1, minWidth: 0, color: 'white', fontSize: 13, lineHeight: 18, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' },
-  copyButton: { padding: 6 },
+  qrWrapper: { alignItems: 'center', alignSelf: 'center', marginBottom: 24, marginTop: 8 },
+  addressLabel: { color: 'rgba(255,255,255,0.8)', fontSize: 14, fontWeight: '600', marginBottom: 12, textAlign: 'center' },
+  addressBox: { backgroundColor: 'rgba(168, 85, 247, 0.1)', borderWidth: 1, borderColor: 'rgba(168, 85, 247, 0.3)', borderRadius: 16, paddingHorizontal: 16, paddingVertical: 16, marginBottom: 20, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  addressTextWrapper: { flex: 1 },
+  addressText: { color: 'white', fontSize: 14, lineHeight: 20, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', textAlign: 'center' },
+  copyButtonBox: { padding: 8, backgroundColor: 'rgba(168, 85, 247, 0.2)', borderRadius: 10 },
+  warningBox: { backgroundColor: 'rgba(255, 165, 0, 0.1)', borderRadius: 12, padding: 16, marginBottom: 20 },
+  warningText: { color: 'orange', fontSize: 12, textAlign: 'center', lineHeight: 18 },
   fieldLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: '600', letterSpacing: 0.8, marginBottom: 8 },
   inputRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 14, paddingHorizontal: 16, marginBottom: 20 },
   textInput: { flex: 1, paddingVertical: 16, color: 'white', fontSize: 15 },
@@ -467,4 +395,8 @@ const styles = StyleSheet.create({
   closeButtonText: { color: 'white', fontWeight: '600', fontSize: 15 },
   ghostButton: { paddingVertical: 16, alignItems: 'center', marginTop: 4 },
   ghostButtonText: { color: 'rgba(255,255,255,0.45)', fontWeight: '500', fontSize: 15 },
+  networkTypeBadge: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 10, borderRadius: 24, backgroundColor: 'rgba(255,255,255,0.05)', borderWidth: 1, marginRight: 10 },
+  networkTypeBadgeSelected: { backgroundColor: 'rgba(255,255,255,0.1)' },
+  networkTypeBadgeText: { fontWeight: '600', fontSize: 14 },
+  badgeDot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
 });

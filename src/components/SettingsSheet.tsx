@@ -7,6 +7,7 @@ import {
     View,
     TextInput,
     Keyboard,
+    Switch,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useWallet } from '../context/WalletContext';
@@ -77,7 +78,6 @@ export function SettingsSheet({ visible, onClose, onLogoutSuccess }: Props) {
   return (
     <BottomSheet visible={visible} onClose={handleClose} avoidKeyboard={step === 'rename'}>
       <View style={[sheetBaseStyle, styles.sheet, { paddingBottom: Math.max(insets.bottom, 24) }]}>
-        {/* Drag handle */}
         <View style={styles.handleWrap}>
           <View style={handleStyle as any} />
         </View>
@@ -85,6 +85,15 @@ export function SettingsSheet({ visible, onClose, onLogoutSuccess }: Props) {
         {step === 'menu' ? (
           <>
             <Text style={styles.title}>Settings</Text>
+
+            <View style={styles.toggleRow}>
+              <Text style={styles.actionText}>Enable Testnets</Text>
+              <Switch 
+                value={wallet.isTestnet} 
+                onValueChange={(val) => wallet.setIsTestnet(val)} 
+                trackColor={{ true: '#A855F7', false: 'rgba(255,255,255,0.2)' }}
+              />
+            </View>
 
             <TouchableOpacity style={styles.actionButton} onPress={() => {
               setNewName(activeWallet?.name || '');
@@ -139,6 +148,16 @@ const styles = StyleSheet.create({
     marginBottom: 32,
     marginTop: 4,
     textAlign: 'center',
+  },
+  toggleRow: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
   },
   actionButton: {
     backgroundColor: 'rgba(255,255,255,0.05)',
