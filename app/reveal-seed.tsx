@@ -7,6 +7,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import { ethers } from 'ethers';
 import { GradientButton } from '../src/components/GradientButton';
 import * as ScreenCapture from 'expo-screen-capture';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useWallet } from '../src/context/WalletContext';
 import { BottomSheet, sheetBaseStyle, handleStyle } from '../src/components/BottomSheet';
 
@@ -14,6 +15,7 @@ export default function RevealSeedScreen() {
   const router = useRouter();
   const params = useLocalSearchParams();
   const wallet = useWallet();
+  const insets = useSafeAreaInsets();
   const [words, setWords] = useState<string[]>([]);
   const [revealed, setRevealed] = useState<boolean[]>(Array(12).fill(false));
   const [reminderVisible, setReminderVisible] = useState(true);
@@ -68,7 +70,7 @@ export default function RevealSeedScreen() {
       </View>
 
       <BottomSheet visible={reminderVisible} onClose={() => setReminderVisible(false)}>
-        <View style={[sheetBaseStyle, styles.sheet]}> 
+        <View style={[sheetBaseStyle, styles.sheet, { paddingBottom: Math.max(insets.bottom, 24) }]}> 
           <View style={handleStyle} />
           <Text style={styles.modalTitle}>Write it down now</Text>
           <Text style={styles.modalSubtitle}>
@@ -92,7 +94,7 @@ const styles = StyleSheet.create({
   wordTile: { width: '47%', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: 12, alignItems: 'center', justifyContent: 'center', height: 52 },
   wordText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
   hiddenText: { color: 'rgba(255,255,255,0.4)', fontSize: 14, fontStyle: 'italic' },
-  sheet: { paddingTop: 12, paddingBottom: 24 },
+  sheet: { paddingTop: 12 },
   modalTitle: { fontSize: 24, fontWeight: '800', color: 'white', textAlign: 'center', marginBottom: 10 },
   modalSubtitle: { fontSize: 15, lineHeight: 22, color: 'rgba(255,255,255,0.72)', textAlign: 'center', marginBottom: 22 },
 });

@@ -20,7 +20,7 @@ export default function AssetsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, { marginLeft: 16 }]}>Your Assets</Text>
+        <Text style={styles.headerTitle}>Your Assets</Text>
       </View>
 
       <FlatList
@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 16,
   },
   headerTitle: {
@@ -61,7 +61,7 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   listContent: {
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingBottom: 100,
   },
 });

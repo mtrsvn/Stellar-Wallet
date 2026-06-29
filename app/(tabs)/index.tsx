@@ -2,7 +2,7 @@ import * as Clipboard from 'expo-clipboard';
 import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Wallet, Settings, Eye, EyeOff, ArrowUpRight, ArrowDownLeft, Copy, QrCode, HelpCircle, ChevronRight, ChevronLeft } from 'lucide-react-native';
+import { User, Settings, Eye, EyeOff, ArrowUpRight, ArrowDownLeft, Copy, QrCode, HelpCircle, ChevronRight, ChevronLeft } from 'lucide-react-native';
 import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import {
   Platform,
@@ -103,7 +103,7 @@ export default function DashboardScreen() {
         <LinearGradient colors={['#9C2CF0', '#7A19D9']} style={styles.balanceCard}>
           <View style={styles.cardHeader}>
             <TouchableOpacity onPress={() => setWalletsVisible(true)} style={styles.iconBox}>
-              <Wallet size={20} color="white" />
+              <User size={20} color="white" />
             </TouchableOpacity>
             <TouchableOpacity onPress={() => setSettingsVisible(true)} style={styles.iconBox}>
               <Settings size={20} color="white" />
@@ -149,9 +149,6 @@ export default function DashboardScreen() {
 
         <View style={styles.activitiesHeader}>
           <Text style={styles.activitiesTitle}>Your Assets</Text>
-          <TouchableOpacity onPress={() => router.push('/assets' as any)}>
-            <Text style={styles.viewAllText}>View All</Text>
-          </TouchableOpacity>
         </View>
 
         {wallet.isBalanceLoading ? (
@@ -179,9 +176,6 @@ export default function DashboardScreen() {
 
         <View style={styles.activitiesHeader}>
           <Text style={styles.activitiesTitle}>Recent Transactions</Text>
-          <TouchableOpacity onPress={() => router.push('/transactions' as any)}>
-            <Text style={styles.viewAllText}>View All</Text>
-          </TouchableOpacity>
         </View>
 
         {wallet.isTransactionsLoading ? (
@@ -226,7 +220,7 @@ export default function DashboardScreen() {
             <>
               <Text style={styles.sheetTitle}>Choose Network</Text>
               
-              <View style={{ marginTop: 12 }}>
+              <View style={{ marginTop: 12, marginBottom: -12 }}>
                 {wallet.tokenBalances?.filter(tb => tb.isNative).map((nb) => (
                   <TouchableOpacity
                     key={nb.network.id}
@@ -300,7 +294,7 @@ export default function DashboardScreen() {
           <View style={styles.handleWrap}><View style={handleStyle as any} /></View>
           <Text style={styles.sheetTitle}>Select Token</Text>
           
-          <ScrollView style={{ maxHeight: 400, marginTop: 12 }}>
+          <ScrollView style={{ maxHeight: 400, marginTop: 12, marginBottom: -12 }}>
             {wallet.tokenBalances?.map((tb) => (
               <TouchableOpacity
                 key={tb.id}
@@ -378,7 +372,6 @@ const styles = StyleSheet.create({
   actionText: { color: 'white', fontWeight: '600', fontSize: 15 },
   activitiesHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 28, marginBottom: 14 },
   activitiesTitle: { color: 'white', fontWeight: '700', fontSize: 16 },
-  viewAllText: { color: '#A855F7', fontWeight: '600' },
   txCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 16, marginBottom: 12 },
   txIconBox: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   networkLogoContainer: { width: 40, height: 40, borderRadius: 20, marginRight: 16, justifyContent: 'center', alignItems: 'center' },
@@ -396,7 +389,7 @@ const styles = StyleSheet.create({
   addressTextWrapper: { flex: 1 },
   addressText: { color: 'white', fontSize: 14, lineHeight: 20, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace', textAlign: 'center' },
   copyButtonBox: { padding: 8, backgroundColor: 'rgba(168, 85, 247, 0.2)', borderRadius: 10 },
-  warningBox: { backgroundColor: 'rgba(255, 165, 0, 0.1)', borderRadius: 12, padding: 16, marginBottom: 20 },
+  warningBox: { backgroundColor: 'rgba(255, 165, 0, 0.1)', borderRadius: 12, padding: 16 },
   warningText: { color: 'orange', fontSize: 12, textAlign: 'center', lineHeight: 18 },
   fieldLabel: { color: 'rgba(255,255,255,0.5)', fontSize: 12, fontWeight: '600', letterSpacing: 0.8, marginBottom: 8 },
   inputRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 14, paddingHorizontal: 16, marginBottom: 20 },

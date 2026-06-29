@@ -11,6 +11,7 @@ import {
   View,
   PanResponder,
   Dimensions,
+  Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, ArrowDownLeft, ArrowUpRight, HelpCircle } from 'lucide-react-native';
@@ -80,33 +81,35 @@ function TxModal({ selectedTx, onClose }: { selectedTx: any; onClose: () => void
   if (!selectedTx) return null;
 
   return (
-    <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999 }]} pointerEvents="box-none">
-      <Animated.View style={[StyleSheet.absoluteFill, { opacity: backdropOpacity }]} pointerEvents="auto">
-        <TouchableWithoutFeedback onPress={handleClose}>
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.75)' }]} />
-        </TouchableWithoutFeedback>
-      </Animated.View>
+    <Modal transparent visible={!!selectedTx} animationType="none" onRequestClose={handleClose}>
+      <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999 }]} pointerEvents="box-none">
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: backdropOpacity }]} pointerEvents="auto">
+          <TouchableWithoutFeedback onPress={handleClose}>
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.75)' }]} />
+          </TouchableWithoutFeedback>
+        </Animated.View>
 
-      <Animated.View
-        style={[styles.modalContent, { transform: [{ translateY: sheetTranslateY }] }]}
-        pointerEvents="auto"
-        {...panResponder.panHandlers}
-      >
-        <View style={styles.handle} />
-        <Text style={styles.modalTitle}>{selectedTx?.title}</Text>
-        <Text style={styles.modalAmount}>{selectedTx?.subtitle}</Text>
-        <Text style={styles.modalDate}>{selectedTx?.date}</Text>
+        <Animated.View
+          style={[styles.modalContent, { transform: [{ translateY: sheetTranslateY }] }]}
+          pointerEvents="auto"
+          {...panResponder.panHandlers}
+        >
+          <View style={styles.handle} />
+          <Text style={styles.modalTitle}>{selectedTx?.title}</Text>
+          <Text style={styles.modalAmount}>{selectedTx?.subtitle}</Text>
+          <Text style={styles.modalDate}>{selectedTx?.date}</Text>
 
-        <View style={styles.divider} />
+          <View style={styles.divider} />
 
-        <Text style={styles.label}>From</Text>
-        <Text style={styles.value}>{selectedTx?.from || 'Unknown'}</Text>
+          <Text style={styles.label}>From</Text>
+          <Text style={styles.value}>{selectedTx?.from || 'Unknown'}</Text>
 
-        <TouchableOpacity onPress={handleClose} style={styles.closeButton} activeOpacity={0.7}>
-          <Text style={styles.closeText}>Close</Text>
-        </TouchableOpacity>
-      </Animated.View>
-    </View>
+          <TouchableOpacity onPress={handleClose} style={styles.closeButton} activeOpacity={0.7}>
+            <Text style={styles.closeText}>Close</Text>
+          </TouchableOpacity>
+        </Animated.View>
+      </View>
+    </Modal>
   );
 }
 
@@ -147,7 +150,7 @@ export default function TransactionsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
-        <Text style={[styles.headerTitle, { marginLeft: 16 }]}>Transactions</Text>
+        <Text style={styles.headerTitle}>Recent Transactions</Text>
       </View>
 
       <FlatList
@@ -174,7 +177,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+    paddingHorizontal: 16,
     paddingVertical: 16,
   },
   headerTitle: { color: 'white', fontSize: 20, fontWeight: 'bold' },

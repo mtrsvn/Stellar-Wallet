@@ -8,6 +8,7 @@ import {
   View,
   PanResponder,
   Dimensions,
+  Modal,
 } from 'react-native';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
@@ -130,21 +131,23 @@ export function BottomSheet({ visible, onClose, children, avoidKeyboard = false 
   if (!mounted) return null;
 
   return (
-    <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999 }]} pointerEvents="box-none">
-      {/* Backdrop */}
-      <Animated.View style={[StyleSheet.absoluteFill, { opacity: backdropOpacity }]} pointerEvents="auto">
-        <TouchableWithoutFeedback onPress={onClose}>
-          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.75)' }]} />
-        </TouchableWithoutFeedback>
-      </Animated.View>
-
-      {/* Sheet container */}
-      <Animated.View style={[styles.kavWrapper, { paddingBottom: kbHeight }]} pointerEvents="box-none">
-        <Animated.View style={{ transform: [{ translateY: sheetY }] }} pointerEvents="auto" {...panResponder.panHandlers}>
-          {children}
+    <Modal transparent visible={mounted} animationType="none" onRequestClose={onClose}>
+      <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999 }]} pointerEvents="box-none">
+        {/* Backdrop */}
+        <Animated.View style={[StyleSheet.absoluteFill, { opacity: backdropOpacity }]} pointerEvents="auto">
+          <TouchableWithoutFeedback onPress={onClose}>
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.75)' }]} />
+          </TouchableWithoutFeedback>
         </Animated.View>
-      </Animated.View>
-    </View>
+
+        {/* Sheet container */}
+        <Animated.View style={[styles.kavWrapper, { paddingBottom: kbHeight }]} pointerEvents="box-none">
+          <Animated.View style={{ transform: [{ translateY: sheetY }] }} pointerEvents="auto" {...panResponder.panHandlers}>
+            {children}
+          </Animated.View>
+        </Animated.View>
+      </View>
+    </Modal>
   );
 }
 

@@ -108,7 +108,7 @@ export function WalletsSheet({ visible, onClose }: Props) {
         </ScrollView>
         </>
         ) : (
-          <View style={{ paddingBottom: 20 }}>
+          <View>
             <TouchableOpacity onPress={goBackToList} style={{ marginBottom: 16, width: 40, height: 40, justifyContent: 'center' }}>
               <FontAwesome name="chevron-left" size={20} color="white" />
             </TouchableOpacity>
@@ -149,7 +149,6 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   scroll: {
-    marginBottom: 20,
   },
   accountRow: {
     flexDirection: 'row',
