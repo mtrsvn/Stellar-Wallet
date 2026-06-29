@@ -17,13 +17,13 @@ import {
   Image,
 } from 'react-native';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
-import { BottomSheet, handleStyle, sheetBaseStyle } from '../src/components/BottomSheet';
-import { QRDisplay } from '../src/components/QRDisplay';
-import { SettingsSheet } from '../src/components/SettingsSheet';
-import { WalletsSheet } from '../src/components/WalletsSheet';
-import { useWallet } from '../src/context/WalletContext';
-import { getNetworkIcon } from '../src/components/NetworkIcons';
-import { TokenListItem } from '../src/components/TokenListItem';
+import { BottomSheet, handleStyle, sheetBaseStyle } from '../../src/components/BottomSheet';
+import { QRDisplay } from '../../src/components/QRDisplay';
+import { SettingsSheet } from '../../src/components/SettingsSheet';
+import { WalletsSheet } from '../../src/components/WalletsSheet';
+import { useWallet } from '../../src/context/WalletContext';
+import { getNetworkIcon } from '../../src/components/NetworkIcons';
+import { TokenListItem } from '../../src/components/TokenListItem';
 
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
@@ -178,8 +178,8 @@ export default function DashboardScreen() {
         )}
 
         <View style={styles.activitiesHeader}>
-          <Text style={styles.activitiesTitle}>Recent Activities</Text>
-          <TouchableOpacity onPress={() => router.push('/activities' as any)}>
+          <Text style={styles.activitiesTitle}>Recent Transactions</Text>
+          <TouchableOpacity onPress={() => router.push('/transactions' as any)}>
             <Text style={styles.viewAllText}>View All</Text>
           </TouchableOpacity>
         </View>
@@ -187,7 +187,7 @@ export default function DashboardScreen() {
         {wallet.isTransactionsLoading ? (
           <Text style={{ color: 'white', textAlign: 'center' }}>Loading...</Text>
         ) : wallet.transactions.length === 0 ? (
-          <Text style={{ color: 'rgba(255,255,255,0.7)', textAlign: 'center' }}>No recent activities</Text>
+          <Text style={{ color: 'rgba(255,255,255,0.7)', textAlign: 'center' }}>No recent transactions</Text>
         ) : (
           wallet.transactions.slice(0, 5).map((tx, idx) => {
             let IconComponent = HelpCircle;
@@ -348,7 +348,7 @@ export default function DashboardScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#0B0B0E' },
-  scrollContent: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 40 },
+  scrollContent: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 100 },
   balanceCard: { borderRadius: 20, padding: 20, overflow: 'hidden' },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between' },
   iconBox: { backgroundColor: 'rgba(255,255,255,0.15)', padding: 10, borderRadius: 12 },

@@ -34,7 +34,7 @@ export default function LoginScreen() {
     const ok = await wallet.verifyPassword(password.trim());
     setLoading(false);
     if (ok) {
-      router.replace('/dashboard' as any);
+      router.replace('/(tabs)' as any);
     } else {
       setError('Incorrect password');
     }

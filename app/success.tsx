@@ -42,7 +42,7 @@ export default function SuccessScreen() {
 
         <GradientButton 
           label="Done" 
-          onPressed={() => router.replace('/dashboard' as any)} 
+          onPressed={() => router.replace('/(tabs)' as any)} 
         />
         <View style={{ height: 20 }} />
       </View>

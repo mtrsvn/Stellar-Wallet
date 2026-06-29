@@ -32,7 +32,7 @@ export default function ScanScreen() {
     if (!result.data) return;
 
     router.replace({
-      pathname: "/dashboard",
+      pathname: "/(tabs)",
       params: { scannedAddress: result.data, scanId: String(Date.now()) },
     });
   };

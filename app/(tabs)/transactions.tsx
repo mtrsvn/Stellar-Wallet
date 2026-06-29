@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, ArrowDownLeft, ArrowUpRight, HelpCircle } from 'lucide-react-native';
-import { useWallet } from '../src/context/WalletContext';
+import { useWallet } from '../../src/context/WalletContext';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 
@@ -110,7 +110,7 @@ function TxModal({ selectedTx, onClose }: { selectedTx: any; onClose: () => void
   );
 }
 
-export default function AllActivitiesScreen() {
+export default function TransactionsScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const wallet = useWallet();
@@ -147,14 +147,7 @@ export default function AllActivitiesScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
-        <TouchableOpacity
-          onPress={() => router.back()}
-          style={{ width: 40, height: 40, justifyContent: 'center' }}
-        >
-          <ChevronLeft size={24} color="white" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Activity</Text>
-        <View style={{ width: 40 }} />
+        <Text style={[styles.headerTitle, { marginLeft: 16 }]}>Transactions</Text>
       </View>
 
       <FlatList
@@ -165,7 +158,7 @@ export default function AllActivitiesScreen() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="white" />}
         ListEmptyComponent={
           <Text style={{ color: 'rgba(255,255,255,0.7)', textAlign: 'center', marginTop: 40 }}>
-            No recent activities
+            No recent transactions
           </Text>
         }
       />
@@ -181,12 +174,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 24,
-    marginTop: 4,
-    marginBottom: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
   },
   headerTitle: { color: 'white', fontSize: 20, fontWeight: 'bold' },
-  listContent: { paddingHorizontal: 16, paddingBottom: 24 },
+  listContent: { paddingHorizontal: 16, paddingBottom: 100 },
   txCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 16, marginBottom: 12 },
   txIconBox: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   txInfo: { flex: 1 },

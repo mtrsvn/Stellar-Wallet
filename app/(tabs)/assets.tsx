@@ -3,8 +3,8 @@ import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } fr
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { FontAwesome } from '@expo/vector-icons';
-import { useWallet } from '../src/context/WalletContext';
-import { TokenListItem } from '../src/components/TokenListItem';
+import { useWallet } from '../../src/context/WalletContext';
+import { TokenListItem } from '../../src/components/TokenListItem';
 
 export default function AssetsScreen() {
   const router = useRouter();
@@ -20,11 +20,7 @@ export default function AssetsScreen() {
   return (
     <SafeAreaView style={styles.container} edges={['top', 'left', 'right']}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={{ width: 40, height: 40, justifyContent: 'center' }}>
-          <FontAwesome name="chevron-left" size={20} color="white" />
-        </TouchableOpacity>
-        <Text style={styles.headerTitle}>Your Assets</Text>
-        <View style={{ width: 40 }} />
+        <Text style={[styles.headerTitle, { marginLeft: 16 }]}>Your Assets</Text>
       </View>
 
       <FlatList
@@ -50,7 +46,7 @@ export default function AssetsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: '#0B0B0E',
   },
   header: {
     flexDirection: 'row',
@@ -66,6 +62,6 @@ const styles = StyleSheet.create({
   },
   listContent: {
     paddingHorizontal: 20,
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
 });
