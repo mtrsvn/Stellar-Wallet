@@ -2,25 +2,67 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Keyboard,
-  Modal,
   Platform,
   StyleSheet,
   TouchableWithoutFeedback,
   View,
+  PanResponder,
+  Dimensions,
 } from 'react-native';
+
+const SCREEN_HEIGHT = Dimensions.get('window').height;
+
 interface Props {
   visible: boolean;
   onClose: () => void;
   children: React.ReactNode;
-  /** Pass true for sheets that contain text inputs */
   avoidKeyboard?: boolean;
 }
 
 export function BottomSheet({ visible, onClose, children, avoidKeyboard = false }: Props) {
   const backdropOpacity = useRef(new Animated.Value(0)).current;
-  const sheetY = useRef(new Animated.Value(800)).current;
+  const sheetY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [mounted, setMounted] = useState(false);
   const kbHeight = useRef(new Animated.Value(0)).current;
+
+  const sheetYVal = useRef(SCREEN_HEIGHT);
+
+  useEffect(() => {
+    const id = sheetY.addListener((v) => {
+      sheetYVal.current = v.value;
+    });
+    return () => sheetY.removeListener(id);
+  }, []);
+
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponderCapture: (_, gestureState) => {
+        return gestureState.dy > 10 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+      },
+      onPanResponderGrant: () => {
+        sheetY.stopAnimation();
+        sheetY.setOffset(sheetYVal.current);
+        sheetY.setValue(0);
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 0) {
+          sheetY.setValue(gestureState.dy);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        sheetY.flattenOffset();
+        if (gestureState.dy > 120 || gestureState.vy > 0.6) {
+          onClose();
+        } else {
+          Animated.spring(sheetY, {
+            toValue: 0,
+            useNativeDriver: false,
+            bounciness: 0,
+          }).start();
+        }
+      },
+    })
+  ).current;
 
   const resetKeyboardOffset = (animated = false) => {
     if (animated) {
@@ -40,15 +82,15 @@ export function BottomSheet({ visible, onClose, children, avoidKeyboard = false 
       resetKeyboardOffset();
       setMounted(true);
       Animated.parallel([
-        Animated.timing(backdropOpacity, { toValue: 1, duration: 260, useNativeDriver: true }),
-        Animated.timing(sheetY, { toValue: 0, duration: 320, useNativeDriver: true }),
+        Animated.timing(backdropOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+        Animated.timing(sheetY, { toValue: 0, duration: 300, useNativeDriver: false }),
       ]).start();
     } else if (mounted) {
       resetKeyboardOffset();
       Keyboard.dismiss();
       Animated.parallel([
         Animated.timing(backdropOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
-        Animated.timing(sheetY, { toValue: 800, duration: 250, useNativeDriver: true }),
+        Animated.timing(sheetY, { toValue: SCREEN_HEIGHT, duration: 250, useNativeDriver: false }),
       ]).start(() => setMounted(false));
     }
   }, [visible]);
@@ -88,28 +130,26 @@ export function BottomSheet({ visible, onClose, children, avoidKeyboard = false 
   if (!mounted) return null;
 
   return (
-    <Modal visible transparent animationType="none" statusBarTranslucent navigationBarTranslucent>
-      <View style={styles.root}>
-        {/* Backdrop */}
-        <Animated.View style={[StyleSheet.absoluteFill, styles.backdrop, { opacity: backdropOpacity }]}>
-          <TouchableWithoutFeedback onPress={onClose}>
-            <View style={StyleSheet.absoluteFill} />
-          </TouchableWithoutFeedback>
-        </Animated.View>
+    <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999 }]} pointerEvents="box-none">
+      {/* Backdrop */}
+      <Animated.View style={[StyleSheet.absoluteFill, { opacity: backdropOpacity }]} pointerEvents="auto">
+        <TouchableWithoutFeedback onPress={onClose}>
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.75)' }]} />
+        </TouchableWithoutFeedback>
+      </Animated.View>
 
-        {/* Sheet container pushed up by keyboard */}
-        <Animated.View style={[styles.kavWrapper, { paddingBottom: kbHeight }]} pointerEvents="box-none">
-          <Animated.View style={{ transform: [{ translateY: sheetY }] }} pointerEvents="auto">
-            {children}
-          </Animated.View>
+      {/* Sheet container */}
+      <Animated.View style={[styles.kavWrapper, { paddingBottom: kbHeight }]} pointerEvents="box-none">
+        <Animated.View style={{ transform: [{ translateY: sheetY }] }} pointerEvents="auto" {...panResponder.panHandlers}>
+          {children}
         </Animated.View>
-      </View>
-    </Modal>
+      </Animated.View>
+    </View>
   );
 }
 
 export const sheetBaseStyle = {
-  backgroundColor: '#18191A' as const,
+  backgroundColor: '#0B0B0E' as const,
   borderTopLeftRadius: 28,
   borderTopRightRadius: 28,
   paddingHorizontal: 24 as const,
@@ -130,12 +170,6 @@ export const handleStyle = {
 };
 
 const styles = StyleSheet.create({
-  root: {
-    flex: 1,
-  },
-  backdrop: {
-    backgroundColor: 'rgba(0,0,0,0.65)',
-  },
   kavWrapper: {
     flex: 1,
     justifyContent: 'flex-end',

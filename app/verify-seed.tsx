@@ -110,7 +110,7 @@ export default function VerifySeedScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1C1D1E' },
+  container: { flex: 1, backgroundColor: '#0B0B0E' },
   content: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, marginTop: 16, marginBottom: 16 },
   headerTitle: { color: 'white', fontSize: 20, fontWeight: 'bold' },

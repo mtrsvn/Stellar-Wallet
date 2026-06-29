@@ -83,7 +83,7 @@ export default function LoginScreen() {
             onSubmitEditing={tryLogin}
           />
           <TouchableOpacity onPress={() => setObscure(!obscure)} style={styles.iconButton}>
-            <FontAwesome name={obscure ? 'eye-slash' : 'eye'} size={18} color="rgba(255,255,255,0.7)" />
+            <FontAwesome name={obscure ? 'eye-slash' : 'eye'} size={18} color="rgba(255,255,255,0.5)" />
           </TouchableOpacity>
         </View>
         <View style={{ height: 20 }}>
@@ -92,7 +92,7 @@ export default function LoginScreen() {
         
         <View style={{ marginTop: 12 }}>
           {loading ? (
-            <View style={{ paddingVertical: 16 }}><ActivityIndicator size="small" color="#9929EA" /></View>
+            <View style={{ paddingVertical: 16 }}><ActivityIndicator size="small" color="#A855F7" /></View>
           ) : (
             <GradientButton label="Unlock Wallet" onPressed={tryLogin} />
           )}
@@ -111,7 +111,7 @@ export default function LoginScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1C1D1E',
+    backgroundColor: '#0B0B0E',
   },
   content: {
     flex: 1,
@@ -144,9 +144,10 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.05)',
     borderRadius: 12,
     paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   inputError: {
-    borderWidth: 1.5,
     borderColor: '#FE5353',
   },
   input: {
@@ -170,7 +171,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   forgotPasswordText: {
-    color: '#9929EA',
+    color: '#A855F7',
     fontSize: 15,
     fontWeight: '600',
   },

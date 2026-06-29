@@ -117,29 +117,28 @@ export default function WelcomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1C1D1E' },
+  container: { flex: 1, backgroundColor: '#0B0B0E' },
   scrollContent: { flexGrow: 1, paddingHorizontal: 28, paddingBottom: 24 },
   image: { width: 300, height: 300, marginTop: 40 },
   title: { fontSize: 36, fontWeight: '600', color: 'white', textAlign: 'center', marginBottom: 8 },
   subtitle: { fontSize: 18, color: 'rgba(255,255,255,0.7)', textAlign: 'center', marginBottom: 40 },
   buttonContainer: { marginBottom: 32 },
   termsText: { color: 'rgba(255,255,255,0.38)', fontSize: 13, textAlign: 'center' },
-  termsLink: { color: '#9929EA' },
+  termsLink: { color: '#A855F7' },
 
   // Bottom sheet base
   backdrop: { backgroundColor: 'rgba(0,0,0,0.6)' },
   sheetWrapper: { position: 'absolute', bottom: 0, left: 0, right: 0 },
   sheet: {
-    backgroundColor: '#1C1D1E',
+    backgroundColor: '#0B0B0E',
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     padding: 24,
-    
   },
   handle: {
     width: 36,
     height: 4,
-    backgroundColor: 'rgba(255,255,255,0.12)',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 2,
     alignSelf: 'center',
     marginBottom: 24,
@@ -152,6 +151,8 @@ const styles = StyleSheet.create({
     padding: 16,
     color: 'white',
     marginBottom: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
   },
   cancelButton: { marginTop: 16, paddingVertical: 14, alignItems: 'center' },
   cancelText: { color: 'rgba(255,255,255,0.5)', fontSize: 15, fontWeight: '500' },

@@ -76,25 +76,25 @@ export default function SendScreen() {
 
         <View style={styles.form}>
           <Text style={styles.label}>Recipient Address</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="0x..."
-            placeholderTextColor="rgba(255,255,255,0.3)"
-            value={address}
-            onChangeText={setAddress}
-          />
+            <TextInput
+              style={styles.input}
+              placeholder="0x..."
+              placeholderTextColor="rgba(255,255,255,0.3)"
+              value={address}
+              onChangeText={setAddress}
+            />
           
           <View style={{ height: 16 }} />
 
           <Text style={styles.label}>Amount (ETH)</Text>
-          <TextInput
-            style={styles.input}
-            placeholder="0.0"
-            placeholderTextColor="rgba(255,255,255,0.3)"
-            value={amount}
-            onChangeText={setAmount}
-            keyboardType="decimal-pad"
-          />
+            <TextInput
+              style={styles.input}
+              placeholder="0.0"
+              placeholderTextColor="rgba(255,255,255,0.3)"
+              value={amount}
+              onChangeText={setAmount}
+              keyboardType="decimal-pad"
+            />
 
           <View style={{ height: 32 }} />
           <GradientButton label={isSending ? "Sending..." : "Send ETH"} onPressed={handleSend} disabled={isSending} />
@@ -105,7 +105,7 @@ export default function SendScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1C1D1E' },
+  container: { flex: 1, backgroundColor: '#0B0B0E' },
   content: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 24, marginTop: 4, marginBottom: 24 },
   headerTitle: { color: 'white', fontSize: 20, fontWeight: 'bold' },

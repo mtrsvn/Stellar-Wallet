@@ -17,7 +17,7 @@ export default function RootLayout() {
   return (
     <WalletProvider>
       <StatusBar style="light" />
-      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#1C1D1E' } }} />
+      <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#0B0B0E' } }} />
     </WalletProvider>
   );
 }

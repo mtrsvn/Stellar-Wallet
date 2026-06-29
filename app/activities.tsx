@@ -1,68 +1,96 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useCallback } from 'react';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import {
   Animated,
   FlatList,
-  Modal,
   RefreshControl,
   StyleSheet,
   Text,
   TouchableOpacity,
   TouchableWithoutFeedback,
   View,
+  PanResponder,
+  Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, ArrowDownLeft, ArrowUpRight, HelpCircle } from 'lucide-react-native';
 import { useWallet } from '../src/context/WalletContext';
 
+const SCREEN_HEIGHT = Dimensions.get('window').height;
+
 function TxModal({ selectedTx, onClose }: { selectedTx: any; onClose: () => void }) {
   const backdropOpacity = useRef(new Animated.Value(0)).current;
-  const sheetTranslateY = useRef(new Animated.Value(400)).current;
+  const sheetTranslateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+
+  const sheetTranslateYVal = useRef(SCREEN_HEIGHT);
 
   useEffect(() => {
-    // Animate in
-    Animated.parallel([
-      Animated.timing(backdropOpacity, {
-        toValue: 1,
-        duration: 250,
-        useNativeDriver: true,
-      }),
-      Animated.timing(sheetTranslateY, {
-        toValue: 0,
-        duration: 300,
-        useNativeDriver: true,
-      }),
-    ]).start();
+    const id = sheetTranslateY.addListener((v) => {
+      sheetTranslateYVal.current = v.value;
+    });
+    return () => sheetTranslateY.removeListener(id);
   }, []);
 
+  const panResponder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponderCapture: (_, gestureState) => {
+        return gestureState.dy > 10 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+      },
+      onPanResponderGrant: () => {
+        sheetTranslateY.stopAnimation();
+        sheetTranslateY.setOffset(sheetTranslateYVal.current);
+        sheetTranslateY.setValue(0);
+      },
+      onPanResponderMove: (_, gestureState) => {
+        if (gestureState.dy > 0) {
+          sheetTranslateY.setValue(gestureState.dy);
+        }
+      },
+      onPanResponderRelease: (_, gestureState) => {
+        sheetTranslateY.flattenOffset();
+        if (gestureState.dy > 120 || gestureState.vy > 0.6) {
+          handleClose();
+        } else {
+          Animated.spring(sheetTranslateY, {
+            toValue: 0,
+            useNativeDriver: false,
+            bounciness: 0,
+          }).start();
+        }
+      },
+    })
+  ).current;
+
+  useEffect(() => {
+    if (selectedTx) {
+      Animated.parallel([
+        Animated.timing(backdropOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
+        Animated.timing(sheetTranslateY, { toValue: 0, duration: 300, useNativeDriver: false }),
+      ]).start();
+    }
+  }, [selectedTx]);
+
   const handleClose = () => {
-    // Animate out then close
     Animated.parallel([
-      Animated.timing(backdropOpacity, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-      Animated.timing(sheetTranslateY, {
-        toValue: 400,
-        duration: 250,
-        useNativeDriver: true,
-      }),
+      Animated.timing(backdropOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
+      Animated.timing(sheetTranslateY, { toValue: SCREEN_HEIGHT, duration: 250, useNativeDriver: false }),
     ]).start(() => onClose());
   };
 
+  if (!selectedTx) return null;
+
   return (
-    <Modal visible transparent animationType="none">
-      {/* Backdrop — fades, does NOT slide */}
-      <Animated.View style={[styles.modalBackdrop, { opacity: backdropOpacity }]}>
+    <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999 }]} pointerEvents="box-none">
+      <Animated.View style={[StyleSheet.absoluteFill, { opacity: backdropOpacity }]} pointerEvents="auto">
         <TouchableWithoutFeedback onPress={handleClose}>
-          <View style={StyleSheet.absoluteFill} />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.75)' }]} />
         </TouchableWithoutFeedback>
       </Animated.View>
 
-      {/* Sheet — slides up */}
       <Animated.View
         style={[styles.modalContent, { transform: [{ translateY: sheetTranslateY }] }]}
+        pointerEvents="auto"
+        {...panResponder.panHandlers}
       >
         <View style={styles.handle} />
         <Text style={styles.modalTitle}>{selectedTx?.title}</Text>
@@ -78,7 +106,7 @@ function TxModal({ selectedTx, onClose }: { selectedTx: any; onClose: () => void
           <Text style={styles.closeText}>Close</Text>
         </TouchableOpacity>
       </Animated.View>
-    </Modal>
+    </View>
   );
 }
 
@@ -148,7 +176,7 @@ export default function AllActivitiesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1C1D1E' },
+  container: { flex: 1, backgroundColor: '#0B0B0E' },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -167,26 +195,19 @@ const styles = StyleSheet.create({
   txAmounts: { alignItems: 'flex-end', justifyContent: 'center' },
   txDate: { color: 'rgba(255,255,255,0.5)', fontSize: 13 },
 
-  // Modal
-  modalBackdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-  },
   modalContent: {
     position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    backgroundColor: '#121214',
+    bottom: 0, left: 0, right: 0,
+    backgroundColor: '#0B0B0E',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     padding: 24,
-    paddingBottom: 48, // extra space above home indicator
+    paddingBottom: 48,
   },
   handle: {
     width: 36,
     height: 4,
-    backgroundColor: 'rgba(255,255,255,0.24)',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 2,
     alignSelf: 'center',
     marginBottom: 20,

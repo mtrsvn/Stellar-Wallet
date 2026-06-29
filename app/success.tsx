@@ -51,7 +51,7 @@ export default function SuccessScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1C1D1E' },
+  container: { flex: 1, backgroundColor: '#0B0B0E' },
   content: { flex: 1, padding: 24, alignItems: 'center', justifyContent: 'center' },
   iconContainer: { marginBottom: 32 },
   title: { fontSize: 32, fontWeight: 'bold', color: 'white', marginBottom: 12, textAlign: 'center' },

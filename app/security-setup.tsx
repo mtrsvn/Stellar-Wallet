@@ -80,17 +80,17 @@ export default function SecuritySetupScreen() {
 
         <Text style={styles.label}>Password</Text>
         <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Password"
-            placeholderTextColor="rgba(255,255,255,0.3)"
-            secureTextEntry={obscurePassword}
-            value={password}
-            onChangeText={(t) => { setPassword(t); setError(''); }}
-          />
-          <TouchableOpacity onPress={() => setObscurePassword(!obscurePassword)} style={styles.iconButton}>
-            <FontAwesome name={obscurePassword ? 'eye-slash' : 'eye'} size={18} color="rgba(255,255,255,0.7)" />
-          </TouchableOpacity>
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              placeholderTextColor="rgba(255,255,255,0.3)"
+              secureTextEntry={obscurePassword}
+              value={password}
+              onChangeText={(t) => { setPassword(t); setError(''); }}
+            />
+            <TouchableOpacity onPress={() => setObscurePassword(!obscurePassword)} style={styles.iconButton}>
+              <FontAwesome name={obscurePassword ? 'eye-slash' : 'eye'} size={18} color="rgba(255,255,255,0.5)" />
+            </TouchableOpacity>
         </View>
 
         <View style={{ height: 24, justifyContent: 'center', marginBottom: 16 }}>
@@ -103,17 +103,17 @@ export default function SecuritySetupScreen() {
 
         <Text style={styles.label}>Confirm Password</Text>
         <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Confirm Password"
-            placeholderTextColor="rgba(255,255,255,0.3)"
-            secureTextEntry={obscureConfirm}
-            value={confirmPassword}
-            onChangeText={(t) => { setConfirmPassword(t); setError(''); }}
-          />
-          <TouchableOpacity onPress={() => setObscureConfirm(!obscureConfirm)} style={styles.iconButton}>
-            <FontAwesome name={obscureConfirm ? 'eye-slash' : 'eye'} size={18} color="rgba(255,255,255,0.7)" />
-          </TouchableOpacity>
+            <TextInput
+              style={styles.input}
+              placeholder="Confirm Password"
+              placeholderTextColor="rgba(255,255,255,0.3)"
+              secureTextEntry={obscureConfirm}
+              value={confirmPassword}
+              onChangeText={(t) => { setConfirmPassword(t); setError(''); }}
+            />
+            <TouchableOpacity onPress={() => setObscureConfirm(!obscureConfirm)} style={styles.iconButton}>
+              <FontAwesome name={obscureConfirm ? 'eye-slash' : 'eye'} size={18} color="rgba(255,255,255,0.5)" />
+            </TouchableOpacity>
         </View>
 
         <View style={{ height: 24, justifyContent: 'center', marginBottom: 16 }}>
@@ -127,13 +127,13 @@ export default function SecuritySetupScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1C1D1E' },
+  container: { flex: 1, backgroundColor: '#0B0B0E' },
   content: { flexGrow: 1, padding: 24 },
   backButton: { width: 40, height: 40, justifyContent: 'center', marginBottom: 16 },
   title: { fontSize: 28, fontWeight: 'bold', color: 'white', marginBottom: 8 },
   subtitle: { fontSize: 16, color: 'rgba(255,255,255,0.7)', marginBottom: 32, lineHeight: 24 },
   label: { fontSize: 13, color: 'rgba(255,255,255,0.7)', marginBottom: 8, fontWeight: '500' },
-  inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, paddingHorizontal: 16 },
+  inputContainer: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 12, paddingHorizontal: 16, borderWidth: 1, borderColor: 'rgba(255,255,255,0.1)' },
   input: { flex: 1, paddingVertical: 16, color: 'white', fontSize: 16 },
   iconButton: { padding: 8 },
   strengthText: { color: 'rgba(255,255,255,0.5)', fontSize: 13 },

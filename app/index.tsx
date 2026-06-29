@@ -8,7 +8,7 @@ export default function AuthWrapper() {
 
   if (wallet.isLoading) {
     return (
-      <View style={{ flex: 1, backgroundColor: '#1C1D1E', justifyContent: 'center', alignItems: 'center' }}>
+      <View style={{ flex: 1, backgroundColor: '#0B0B0E', justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color="#9929EA" />
       </View>
     );

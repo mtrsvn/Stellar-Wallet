@@ -20,7 +20,7 @@ export function GradientButton({ label, onPressed, disabled, outline }: Props) {
   return (
     <TouchableOpacity onPress={onPressed} disabled={disabled} style={{ width: '100%' }} activeOpacity={0.8}>
       <LinearGradient
-        colors={disabled ? ['#555', '#444'] : ['#9C2CF0', '#7A19D9']}
+        colors={disabled ? ['#333', '#222'] : ['#9C2CF0', '#7A19D9']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 0 }}
         style={styles.button}

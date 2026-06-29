@@ -399,7 +399,7 @@ export default function DashboardScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1C1D1E' },
+  container: { flex: 1, backgroundColor: '#0B0B0E' },
   scrollContent: { paddingHorizontal: 16, paddingTop: 4, paddingBottom: 40 },
   balanceCard: { borderRadius: 20, padding: 20, overflow: 'hidden' },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between' },
@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
   actionText: { color: 'white', fontWeight: '600', fontSize: 15 },
   activitiesHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 28, marginBottom: 14 },
   activitiesTitle: { color: 'white', fontWeight: '700', fontSize: 16 },
-  viewAllText: { color: '#9C2CF0', fontWeight: '600' },
+  viewAllText: { color: '#A855F7', fontWeight: '600' },
   txCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 16, marginBottom: 12 },
   txIconBox: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
   txInfo: { flex: 1 },
@@ -461,7 +461,7 @@ const styles = StyleSheet.create({
   inputRow: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.06)', borderRadius: 14, paddingHorizontal: 16, marginBottom: 20 },
   textInput: { flex: 1, paddingVertical: 16, color: 'white', fontSize: 15 },
   qrButton: { padding: 10, marginLeft: 4 },
-  primaryButton: { backgroundColor: '#9C2CF0', borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginBottom: 10 },
+  primaryButton: { backgroundColor: '#A855F7', borderRadius: 14, paddingVertical: 16, alignItems: 'center', marginBottom: 10 },
   primaryButtonText: { color: 'white', fontWeight: '700', fontSize: 16 },
   closeButton: { backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 14, paddingVertical: 14, alignItems: 'center', marginTop: 4 },
   closeButtonText: { color: 'white', fontWeight: '600', fontSize: 15 },

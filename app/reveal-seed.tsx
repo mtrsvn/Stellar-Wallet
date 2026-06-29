@@ -83,13 +83,13 @@ export default function RevealSeedScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#1C1D1E' },
+  container: { flex: 1, backgroundColor: '#0B0B0E' },
   content: { flex: 1, padding: 24 },
   backButton: { marginTop: 4, marginBottom: 24, width: 40, height: 40, justifyContent: 'center' },
   title: { fontSize: 28, fontWeight: 'bold', color: 'white', marginBottom: 8 },
   subtitle: { fontSize: 16, color: 'rgba(255,255,255,0.7)', marginBottom: 32 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', gap: 10 },
-  wordTile: { width: '47%', backgroundColor: '#2A2A2C', borderRadius: 8, padding: 12, alignItems: 'center', justifyContent: 'center', height: 52 },
+  wordTile: { width: '47%', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: 12, alignItems: 'center', justifyContent: 'center', height: 52 },
   wordText: { color: 'white', fontWeight: 'bold', fontSize: 16 },
   hiddenText: { color: 'rgba(255,255,255,0.4)', fontSize: 14, fontStyle: 'italic' },
   sheet: { paddingTop: 12, paddingBottom: 24 },
