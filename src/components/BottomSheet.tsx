@@ -26,18 +26,15 @@ export function BottomSheet({ visible, onClose, children, avoidKeyboard = false 
   const [mounted, setMounted] = useState(false);
   const kbHeight = useRef(new Animated.Value(0)).current;
 
-  const sheetYVal = useRef(SCREEN_HEIGHT);
 
+
+  const onCloseRef = useRef(onClose);
   useEffect(() => {
-    const id = sheetY.addListener((v) => {
-      sheetYVal.current = v.value;
-    });
-    return () => sheetY.removeListener(id);
-  }, []);
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
-  const panResponder = useRef(
+  const panResponder = React.useMemo(() =>
     PanResponder.create({
-      onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gestureState) => {
         return gestureState.dy > 8 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
       },
@@ -46,8 +43,7 @@ export function BottomSheet({ visible, onClose, children, avoidKeyboard = false 
       },
       onPanResponderGrant: () => {
         sheetY.stopAnimation();
-        sheetY.setOffset(sheetYVal.current);
-        sheetY.setValue(0);
+        sheetY.extractOffset();
       },
       onPanResponderMove: (_, gestureState) => {
         if (gestureState.dy > 0) {
@@ -56,8 +52,10 @@ export function BottomSheet({ visible, onClose, children, avoidKeyboard = false 
       },
       onPanResponderRelease: (_, gestureState) => {
         sheetY.flattenOffset();
-        if (gestureState.dy > 100 || gestureState.vy > 0.5) {
-          onClose();
+        if (gestureState.dy > 120 || (gestureState.vy > 0.5 && gestureState.dy > 20)) {
+          // Call onClose synchronously so the parent state updates immediately.
+          // The useEffect will handle the exit animation reliably.
+          onCloseRef.current();
         } else {
           Animated.spring(sheetY, {
             toValue: 0,
@@ -66,8 +64,16 @@ export function BottomSheet({ visible, onClose, children, avoidKeyboard = false 
           }).start();
         }
       },
-    })
-  ).current;
+      onPanResponderTerminate: () => {
+        sheetY.flattenOffset();
+        Animated.spring(sheetY, {
+          toValue: 0,
+          useNativeDriver: false,
+          bounciness: 0,
+        }).start();
+      },
+    }),
+  [mounted, sheetY]);
 
   const resetKeyboardOffset = (animated = false) => {
     if (animated) {
@@ -147,7 +153,9 @@ export function BottomSheet({ visible, onClose, children, avoidKeyboard = false 
         {/* Sheet container */}
         <Animated.View style={[styles.kavWrapper, { paddingBottom: kbHeight }]} pointerEvents="box-none">
           <Animated.View style={{ transform: [{ translateY: sheetY }] }} {...panResponder.panHandlers}>
-            {children}
+            <View onStartShouldSetResponder={() => true}>
+              {children}
+            </View>
           </Animated.View>
         </Animated.View>
       </View>
