@@ -27,7 +27,8 @@ import {
     ScrollView,
     StyleSheet,
     Text,
-    View
+    View,
+    ActivityIndicator
 } from "react-native";
 import {
     SafeAreaView,
@@ -223,29 +224,16 @@ export default function DashboardScreen() {
         </View>
 
         {wallet.isBalanceLoading ? (
-          <Text style={{ color: "white", textAlign: "center" }}>
-            Loading assets...
-          </Text>
+          <ActivityIndicator size="small" color="#A855F7" style={{ marginVertical: 20 }} />
         ) : wallet.tokenBalances && wallet.tokenBalances.length === 0 ? (
           <Text style={{ color: "rgba(255,255,255,0.7)", textAlign: "center" }}>
             No assets found
           </Text>
         ) : (
           wallet.tokenBalances?.slice(0, 5).map((tb, idx) => {
-            const itemWithHiddenBalance = {
-              ...tb,
-              balanceStr: showBalances ? tb.balanceStr : "••••",
-              usdValue: showBalances ? tb.usdValue : 0,
-            };
             return (
               <View key={tb.id}>
-                {showBalances ? (
-                  <TokenListItem item={tb} />
-                ) : (
-                  <TokenListItem
-                    item={{ ...tb, balanceStr: "••••", usdValue: 0 }}
-                  />
-                )}
+                <TokenListItem item={tb} hideBalance={!showBalances} />
               </View>
             );
           })
@@ -256,9 +244,7 @@ export default function DashboardScreen() {
         </View>
 
         {wallet.isTransactionsLoading ? (
-          <Text style={{ color: "white", textAlign: "center" }}>
-            Loading...
-          </Text>
+          <ActivityIndicator size="small" color="#A855F7" style={{ marginVertical: 20 }} />
         ) : wallet.transactions.length === 0 ? (
           <Text style={{ color: "rgba(255,255,255,0.7)", textAlign: "center" }}>
             No recent transactions

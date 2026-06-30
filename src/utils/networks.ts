@@ -28,7 +28,7 @@ export const SUPPORTED_NETWORKS: Network[] = [
   },
   {
     id: 'bnb-mainnet',
-    name: 'BEP Chain',
+    name: 'BNB Chain',
     type: 'EVM',
     chainId: 56,
     rpcUrl: 'https://bsc-dataseed.binance.org',

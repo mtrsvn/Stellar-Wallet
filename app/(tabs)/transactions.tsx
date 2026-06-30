@@ -13,6 +13,7 @@ import {
   PanResponder,
   Dimensions,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ChevronLeft, ArrowDownLeft, ArrowUpRight, HelpCircle } from 'lucide-react-native';
@@ -161,9 +162,13 @@ export default function TransactionsScreen() {
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="white" />}
         ListEmptyComponent={
-          <Text style={{ color: 'rgba(255,255,255,0.7)', textAlign: 'center', marginTop: 40 }}>
-            No recent transactions
-          </Text>
+          wallet.isTransactionsLoading ? (
+            <ActivityIndicator size="small" color="#A855F7" style={{ marginTop: 40 }} />
+          ) : (
+            <Text style={{ color: 'rgba(255,255,255,0.7)', textAlign: 'center', marginTop: 40 }}>
+              No recent transactions
+            </Text>
+          )
         }
       />
 

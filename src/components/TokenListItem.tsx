@@ -6,9 +6,10 @@ import { getNetworkIcon } from './NetworkIcons';
 
 interface TokenListItemProps {
   item: TokenBalance;
+  hideBalance?: boolean;
 }
 
-export function TokenListItem({ item }: TokenListItemProps) {
+export function TokenListItem({ item, hideBalance }: TokenListItemProps) {
   const mainSymbol = item.isNative ? item.network.symbol : item.token?.symbol || 'UNK';
   const mainName = item.isNative ? item.network.name : item.token?.name || 'Unknown Token';
   
@@ -41,8 +42,8 @@ export function TokenListItem({ item }: TokenListItemProps) {
       </View>
       
       <View style={styles.balanceContainer}>
-        <Text style={styles.usdText}>${item.usdValue.toFixed(2)}</Text>
-        <Text style={styles.balanceText}>{item.balanceStr}</Text>
+        <Text style={styles.usdText}>{hideBalance ? '••••' : `$${item.usdValue.toFixed(2)}`}</Text>
+        <Text style={styles.balanceText}>{hideBalance ? '••••' : item.balanceStr}</Text>
       </View>
     </View>
   );

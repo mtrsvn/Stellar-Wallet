@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, StyleSheet, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { FontAwesome } from '@expo/vector-icons';
@@ -31,9 +31,13 @@ export default function AssetsScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="white" />
         }
         ListEmptyComponent={
-          <Text style={{ color: 'rgba(255,255,255,0.7)', textAlign: 'center', marginTop: 40 }}>
-            {wallet.isBalanceLoading ? 'Loading assets...' : 'No assets found'}
-          </Text>
+          wallet.isBalanceLoading ? (
+            <ActivityIndicator size="small" color="#A855F7" style={{ marginTop: 40 }} />
+          ) : (
+            <Text style={{ color: 'rgba(255,255,255,0.7)', textAlign: 'center', marginTop: 40 }}>
+              No assets found
+            </Text>
+          )
         }
         renderItem={({ item }) => (
           <TokenListItem item={item} />
