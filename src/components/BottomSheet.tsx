@@ -37,7 +37,11 @@ export function BottomSheet({ visible, onClose, children, avoidKeyboard = false 
 
   const panResponder = useRef(
     PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
       onMoveShouldSetPanResponder: (_, gestureState) => {
+        return gestureState.dy > 8 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+      },
+      onMoveShouldSetPanResponderCapture: (_, gestureState) => {
         return gestureState.dy > 8 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
       },
       onPanResponderGrant: () => {
@@ -142,9 +146,8 @@ export function BottomSheet({ visible, onClose, children, avoidKeyboard = false 
 
         {/* Sheet container */}
         <Animated.View style={[styles.kavWrapper, { paddingBottom: kbHeight }]} pointerEvents="box-none">
-          <Animated.View style={{ transform: [{ translateY: sheetY }] }} pointerEvents="box-none">
-            <View style={styles.dragHandleArea} {...panResponder.panHandlers} />
-            <View pointerEvents="box-none">{children}</View>
+          <Animated.View style={{ transform: [{ translateY: sheetY }] }} {...panResponder.panHandlers}>
+            {children}
           </Animated.View>
         </Animated.View>
       </View>
