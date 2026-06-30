@@ -445,11 +445,10 @@ export default function DashboardScreen() {
               />
             </View>
           </HapticTouchableOpacity>
-
           <View style={styles.warningBox}>
             <Text style={styles.warningText}>
-              Send only {selectedReceiveNetwork?.symbol} to this address.
-              Sending any other asset will result in permanent loss.
+              Warning: Only send assets on the {selectedReceiveNetwork?.name || 'Stellar'} network to this address.
+              Sending assets on other networks will result in permanent loss.
             </Text>
           </View>
         </View>
