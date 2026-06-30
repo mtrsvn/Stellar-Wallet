@@ -37,12 +37,12 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [settingsVisible, setSettingsVisible] = useState(false);
   const [receiveVisible, setReceiveVisible] = useState(false);
+  const [receiveQrVisible, setReceiveQrVisible] = useState(false);
   const [sendVisible, setSendVisible] = useState(false);
   const [walletsVisible, setWalletsVisible] = useState(false);
   const [sendToAddress, setSendToAddress] = useState('');
   
   const [receiveNetworkId, setReceiveNetworkId] = useState<string>('');
-  const [receiveStep, setReceiveStep] = useState<'select' | 'qr'>('select');
 
   useEffect(() => {
     wallet.loadAccounts();
@@ -210,83 +210,83 @@ export default function DashboardScreen() {
       <SettingsSheet visible={settingsVisible} onClose={() => setSettingsVisible(false)} onLogoutSuccess={() => router.replace('/welcome' as any)} />
       <WalletsSheet visible={walletsVisible} onClose={() => setWalletsVisible(false)} />
 
-      <BottomSheet visible={receiveVisible} onClose={() => {
-        setReceiveVisible(false);
-        setTimeout(() => setReceiveStep('select'), 300);
-      }}>
+      <BottomSheet visible={receiveVisible} onClose={() => setReceiveVisible(false)}>
         <View style={[sheetBaseStyle, { paddingBottom: Math.max(insets.bottom, 24) }]}>
           <View style={styles.handleWrap}><View style={handleStyle as any} /></View>
           
-          {receiveStep === 'select' ? (
-            <>
-              <Text style={styles.sheetTitle}>Choose Network</Text>
-              
-              <View style={{ marginTop: 12, marginBottom: -12 }}>
-                {wallet.tokenBalances?.filter(tb => tb.isNative).map((nb) => (
-                  <HapticTouchableOpacity
-                    key={nb.network.id}
-                    style={styles.txCard}
-                    onPress={() => {
-                      setReceiveNetworkId(nb.network.id);
-                      setReceiveStep('qr');
-                    }}
-                  >
-                    <View style={styles.networkLogoContainer}>
-                      {getNetworkIcon(nb.network.symbol, 40) || (
-                        <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: nb.network.color, justifyContent: 'center', alignItems: 'center' }}>
-                          <Text style={{color: 'white', fontWeight: 'bold'}}>{nb.network.symbol[0]}</Text>
-                        </View>
-                      )}
+          <Text style={styles.sheetTitle}>Choose Network</Text>
+          
+          <View style={{ marginTop: 12, marginBottom: -12 }}>
+            {wallet.tokenBalances?.filter(tb => tb.isNative).map((nb) => (
+              <HapticTouchableOpacity
+                key={nb.network.id}
+                style={styles.txCard}
+                onPress={() => {
+                  setReceiveNetworkId(nb.network.id);
+                  setReceiveVisible(false);
+                  setTimeout(() => setReceiveQrVisible(true), 300);
+                }}
+              >
+                <View style={styles.networkLogoContainer}>
+                  {getNetworkIcon(nb.network.symbol, 40) || (
+                    <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: nb.network.color, justifyContent: 'center', alignItems: 'center' }}>
+                      <Text style={{color: 'white', fontWeight: 'bold'}}>{nb.network.symbol[0]}</Text>
                     </View>
-                    <View style={styles.txInfo}>
-                      <Text style={[styles.txTitle, { marginBottom: 0 }]}>{nb.network.name}</Text>
-                    </View>
-                    <View style={styles.txAmounts}>
-                      <ChevronRight color="rgba(255,255,255,0.3)" size={20} />
-                    </View>
-                  </HapticTouchableOpacity>
-                ))}
-              </View>
-            </>
-          ) : (
-            <>
-              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-                <HapticTouchableOpacity onPress={() => setReceiveStep('select')} style={{ padding: 8 }}>
-                  <ChevronLeft size={24} color="white" />
-                </HapticTouchableOpacity>
-                <Text style={[styles.sheetTitle, { marginBottom: 0 }]}>Receive {selectedReceiveNetwork?.symbol}</Text>
-                <View style={{ width: 34 }} />
-              </View>
-
-              <View style={styles.qrWrapper}>
-                <View style={{ padding: 12, backgroundColor: 'white', borderRadius: 24, shadowColor: selectedReceiveNetwork?.color || '#000', shadowOpacity: 0.3, shadowRadius: 20, elevation: 10 }}>
-                  <QRDisplay address={currentReceiveAddress ? currentReceiveAddress : 'loading'} />
+                  )}
                 </View>
-              </View>
-
-              <Text style={styles.addressLabel}>
-                Your {selectedReceiveNetwork?.name || ''} Address
-              </Text>
-              
-              <HapticTouchableOpacity style={styles.addressBox} onPress={copyWalletAddress} disabled={!currentReceiveAddress} activeOpacity={0.7}>
-                <View style={styles.addressTextWrapper}>
-                  <Text style={styles.addressText} numberOfLines={2} ellipsizeMode="middle">
-                    {currentReceiveAddress || 'No address yet'}
-                  </Text>
+                <View style={styles.txInfo}>
+                  <Text style={[styles.txTitle, { marginBottom: 0 }]}>{nb.network.name}</Text>
                 </View>
-                <View style={styles.copyButtonBox}>
-                  <Copy size={20} color={currentReceiveAddress ? '#A855F7' : 'rgba(255,255,255,0.35)'} />
+                <View style={styles.txAmounts}>
+                  <ChevronRight color="rgba(255,255,255,0.3)" size={20} />
                 </View>
               </HapticTouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </BottomSheet>
 
-              <View style={styles.warningBox}>
-                <Text style={styles.warningText}>
-                  Send only {selectedReceiveNetwork?.symbol} to this address. Sending any other asset will result in permanent loss.
-                </Text>
-              </View>
-            </>
-          )}
+      <BottomSheet visible={receiveQrVisible} onClose={() => setReceiveQrVisible(false)}>
+        <View style={[sheetBaseStyle, { paddingBottom: Math.max(insets.bottom, 24) }]}>
+          <View style={styles.handleWrap}><View style={handleStyle as any} /></View>
 
+          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+            <HapticTouchableOpacity onPress={() => {
+              setReceiveQrVisible(false);
+              setTimeout(() => setReceiveVisible(true), 300);
+            }} style={{ padding: 8 }}>
+              <ChevronLeft size={24} color="white" />
+            </HapticTouchableOpacity>
+            <Text style={[styles.sheetTitle, { marginBottom: 0 }]}>Receive {selectedReceiveNetwork?.symbol}</Text>
+            <View style={{ width: 34 }} />
+          </View>
+
+          <View style={styles.qrWrapper}>
+            <View style={{ padding: 12, backgroundColor: 'white', borderRadius: 24, shadowColor: selectedReceiveNetwork?.color || '#000', shadowOpacity: 0.3, shadowRadius: 20, elevation: 10 }}>
+              <QRDisplay address={currentReceiveAddress ? currentReceiveAddress : 'loading'} />
+            </View>
+          </View>
+
+          <Text style={styles.addressLabel}>
+            Your {selectedReceiveNetwork?.name || ''} Address
+          </Text>
+          
+          <HapticTouchableOpacity style={styles.addressBox} onPress={copyWalletAddress} disabled={!currentReceiveAddress} activeOpacity={0.7}>
+            <View style={styles.addressTextWrapper}>
+              <Text style={styles.addressText} numberOfLines={2} ellipsizeMode="middle">
+                {currentReceiveAddress || 'No address yet'}
+              </Text>
+            </View>
+            <View style={styles.copyButtonBox}>
+              <Copy size={20} color={currentReceiveAddress ? '#A855F7' : 'rgba(255,255,255,0.35)'} />
+            </View>
+          </HapticTouchableOpacity>
+
+          <View style={styles.warningBox}>
+            <Text style={styles.warningText}>
+              Send only {selectedReceiveNetwork?.symbol} to this address. Sending any other asset will result in permanent loss.
+            </Text>
+          </View>
         </View>
       </BottomSheet>
 
