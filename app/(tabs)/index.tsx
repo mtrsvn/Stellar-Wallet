@@ -403,10 +403,6 @@ export default function DashboardScreen() {
                 padding: 12,
                 backgroundColor: "white",
                 borderRadius: 24,
-                shadowColor: selectedReceiveNetwork?.color || "#000",
-                shadowOpacity: 0.3,
-                shadowRadius: 20,
-                elevation: 10,
               }}
             >
               <QRDisplay
