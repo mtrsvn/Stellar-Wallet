@@ -37,8 +37,12 @@ export function BottomSheet({ visible, onClose, children, avoidKeyboard = false 
 
   const panResponder = useRef(
     PanResponder.create({
+      onStartShouldSetPanResponder: () => true,
+      onMoveShouldSetPanResponder: (_, gestureState) => {
+        return gestureState.dy > 5 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+      },
       onMoveShouldSetPanResponderCapture: (_, gestureState) => {
-        return gestureState.dy > 10 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
+        return gestureState.dy > 5 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
       },
       onPanResponderGrant: () => {
         sheetY.stopAnimation();
@@ -52,7 +56,7 @@ export function BottomSheet({ visible, onClose, children, avoidKeyboard = false 
       },
       onPanResponderRelease: (_, gestureState) => {
         sheetY.flattenOffset();
-        if (gestureState.dy > 120 || gestureState.vy > 0.6) {
+        if (gestureState.dy > 100 || gestureState.vy > 0.5) {
           onClose();
         } else {
           Animated.spring(sheetY, {
