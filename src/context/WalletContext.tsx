@@ -309,10 +309,41 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Sort by USD value descending
-      balancesList.sort((a, b) => b.usdValue - a.usdValue);
+      const filteredBalancesList = balancesList.filter(b => {
+        if (b.balanceValue > 0) return true;
 
-      setTokenBalances(balancesList);
+        if (b.isNative) {
+          const sym = b.network.symbol.toUpperCase();
+          return ['BTC', 'ETH', 'BNB', 'SOL'].includes(sym);
+        } else {
+          const sym = b.token?.symbol.toUpperCase();
+          const isEthNetwork = b.network.id === 'ethereum-mainnet' || b.network.id === 'ethereum-sepolia';
+          if (isEthNetwork && sym && ['USDT', 'USDC', 'LINK', 'UNI', 'SHIB', 'PEPE'].includes(sym)) {
+            return true;
+          }
+          return false;
+        }
+      });
+
+      const COIN_ORDER = ["BTC", "ETH", "BNB", "SOL", "USDT", "USDC", "LINK", "UNI", "SHIB", "PEPE"];
+
+      filteredBalancesList.sort((a, b) => {
+        const symA = (a.isNative ? a.network.symbol : a.token?.symbol)?.toUpperCase() || "";
+        const symB = (b.isNative ? b.network.symbol : b.token?.symbol)?.toUpperCase() || "";
+        
+        let indexA = COIN_ORDER.indexOf(symA);
+        let indexB = COIN_ORDER.indexOf(symB);
+        
+        if (indexA === -1) indexA = 999;
+        if (indexB === -1) indexB = 999;
+        
+        if (indexA !== indexB) {
+          return indexA - indexB;
+        }
+        return b.usdValue - a.usdValue;
+      });
+
+      setTokenBalances(filteredBalancesList);
       setTotalUsdBalance(totalUsd);
     } catch (e) {
       console.error("fetchBalances error", e);

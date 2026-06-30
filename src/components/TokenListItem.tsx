@@ -30,11 +30,9 @@ export function TokenListItem({ item }: TokenListItemProps) {
         )}
         
         {/* Network Badge for Tokens */}
-        {!item.isNative && (
-          <View style={styles.badgeContainer}>
-            {getNetworkIcon(item.network.symbol, 16)}
-          </View>
-        )}
+        <View style={styles.badgeContainer}>
+          {getNetworkIcon(item.network.symbol, 16)}
+        </View>
       </View>
       
       <View style={styles.detailsContainer}>

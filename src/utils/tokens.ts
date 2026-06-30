@@ -41,6 +41,56 @@ export const SUPPORTED_TOKENS: Token[] = [
     logoUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x514910771AF9Ca656af840dff83E8264EcF986CA/logo.png',
     coingeckoId: 'chainlink'
   },
+  {
+    id: 'eth-uni',
+    networkId: 'ethereum-mainnet',
+    address: '0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984',
+    name: 'Uniswap',
+    symbol: 'UNI',
+    decimals: 18,
+    logoUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x1f9840a85d5aF5bf1D1762F925BDADdC4201F984/logo.png',
+    coingeckoId: 'uniswap'
+  },
+  {
+    id: 'eth-aave',
+    networkId: 'ethereum-mainnet',
+    address: '0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9',
+    name: 'Aave',
+    symbol: 'AAVE',
+    decimals: 18,
+    logoUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x7Fc66500c84A76Ad7e9c93437bFc5Ac33E2DDaE9/logo.png',
+    coingeckoId: 'aave'
+  },
+  {
+    id: 'eth-dai',
+    networkId: 'ethereum-mainnet',
+    address: '0x6B175474E89094C44Da98b954EedeAC495271d0F',
+    name: 'Dai',
+    symbol: 'DAI',
+    decimals: 18,
+    logoUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6B175474E89094C44Da98b954EedeAC495271d0F/logo.png',
+    coingeckoId: 'dai'
+  },
+  {
+    id: 'eth-shib',
+    networkId: 'ethereum-mainnet',
+    address: '0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE',
+    name: 'Shiba Inu',
+    symbol: 'SHIB',
+    decimals: 18,
+    logoUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x95aD61b0a150d79219dCF64E1E6Cc01f0B64C4cE/logo.png',
+    coingeckoId: 'shiba-inu'
+  },
+  {
+    id: 'eth-pepe',
+    networkId: 'ethereum-mainnet',
+    address: '0x6982508145454Ce325dDbE47a25d4ec3d2311933',
+    name: 'Pepe',
+    symbol: 'PEPE',
+    decimals: 18,
+    logoUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x6982508145454Ce325dDbE47a25d4ec3d2311933/logo.png',
+    coingeckoId: 'pepe'
+  },
   
   // BNB Chain Tokens
   {
@@ -62,6 +112,26 @@ export const SUPPORTED_TOKENS: Token[] = [
     decimals: 18,
     logoUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/assets/0x0E09FaBB73Bd3Ade0a17ECC321fD13a19e81cE82/logo.png',
     coingeckoId: 'pancakeswap-token'
+  },
+  {
+    id: 'bnb-xrp',
+    networkId: 'bnb-mainnet',
+    address: '0x1D2F0da169ceB9fC7B3144628dB156f3F6c60dBE',
+    name: 'XRP',
+    symbol: 'XRP',
+    decimals: 18,
+    logoUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/assets/0x1D2F0da169ceB9fC7B3144628dB156f3F6c60dBE/logo.png',
+    coingeckoId: 'ripple'
+  },
+  {
+    id: 'bnb-doge',
+    networkId: 'bnb-mainnet',
+    address: '0xbA2aE424d960c26247Dd6C32edC70B295c744C43',
+    name: 'Dogecoin',
+    symbol: 'DOGE',
+    decimals: 8,
+    logoUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/assets/0xbA2aE424d960c26247Dd6C32edC70B295c744C43/logo.png',
+    coingeckoId: 'dogecoin'
   },
 
   // Solana Tokens
