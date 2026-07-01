@@ -6,7 +6,7 @@ import { HapticTouchableOpacity } from '../src/components/HapticTouchableOpacity
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { FontAwesome } from '@expo/vector-icons';
-import { ethers } from 'ethers';
+import * as bip39 from 'bip39';
 import { GradientButton } from '../src/components/GradientButton';
 import * as ScreenCapture from 'expo-screen-capture';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -31,7 +31,10 @@ export default function RevealSeedScreen() {
   });
 
   useEffect(() => {
-    const mnemonic = ethers.Wallet.createRandom().mnemonic?.phrase || '';
+    // Generate mnemonic using bip39 which uses the polyfilled getRandomValues
+    const randomBytes = new Uint8Array(16);
+    crypto.getRandomValues(randomBytes);
+    const mnemonic = bip39.entropyToMnemonic(Buffer.from(randomBytes).toString('hex'));
     const wordArray = mnemonic.split(' ');
     setWords(wordArray);
     const wName = params.name as string | undefined;

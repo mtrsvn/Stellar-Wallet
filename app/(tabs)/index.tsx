@@ -376,6 +376,9 @@ export default function DashboardScreen() {
               initialSpacing={0}
               endSpacing={0}
               adjustToWidth={true}
+              yAxisOffset={0}
+              mostNegativeValue={-1}
+              maxValue={chartData.every(d => d.value === 0) ? 1 : undefined}
               pointerConfig={{
                 activatePointersOnLongPress: false,
                 activatePointersDelay: 0,

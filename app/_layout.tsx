@@ -1,9 +1,9 @@
+import "react-native-get-random-values";
 import * as NavigationBar from "expo-navigation-bar";
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect } from "react";
 import { Platform } from "react-native";
-import "react-native-get-random-values";
 import { WalletProvider } from "../src/context/WalletContext";
 
 export default function RootLayout() {
