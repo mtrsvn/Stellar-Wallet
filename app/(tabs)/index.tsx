@@ -1,6 +1,7 @@
 import * as Clipboard from "expo-clipboard";
 import * as Haptics from "expo-haptics";
 import { LinearGradient } from "expo-linear-gradient";
+import { LineChart } from 'react-native-gifted-charts';
 import { useLocalSearchParams, useRouter } from "expo-router";
 import {
     ArrowDownLeft,
@@ -18,7 +19,8 @@ import React, {
     useCallback,
     useEffect,
     useRef,
-    useState
+    useState,
+    useMemo
 } from "react";
 import {
     Dimensions,
@@ -29,7 +31,8 @@ import {
     Text,
     View,
     ActivityIndicator,
-    Image
+    Image,
+    DeviceEventEmitter
 } from "react-native";
 import {
     SafeAreaView,
@@ -48,11 +51,181 @@ import { TokenListItem } from "../../src/components/TokenListItem";
 import { WalletsSheet } from "../../src/components/WalletsSheet";
 import { useWallet } from "../../src/context/WalletContext";
 
+const ScrubTooltip = ({ items }: { items: any }) => {
+  useEffect(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    DeviceEventEmitter.emit('onScrub', {
+      value: items[0]?.value,
+      labelDate: items[0]?.labelDate || null,
+    });
+    return () => {
+      DeviceEventEmitter.emit('onScrub', { value: null, labelDate: null });
+    };
+  }, [items[0]?.value]);
+
+  // Render nothing — date is shown in header subtitle instead
+  return null;
+};
+
+const DynamicBalanceText = ({ showBalances, defaultUsdValue }: { showBalances: boolean, defaultUsdValue: number }) => {
+  const [scrubbed, setScrubbed] = useState<number | null>(null);
+  
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('onScrub', (payload) => {
+      const val = payload?.value;
+      if (val === null || val === undefined) {
+        setScrubbed(null);
+      } else {
+        const num = Number(val);
+        setScrubbed(isNaN(num) ? null : num);
+      }
+    });
+    return () => sub.remove();
+  }, []);
+
+  const valToDisplay = (scrubbed !== null && !isNaN(scrubbed)) ? scrubbed : ((defaultUsdValue !== undefined && !isNaN(defaultUsdValue)) ? defaultUsdValue : 0);
+  const displayUsdValue = Number(valToDisplay).toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  });
+  const displayUsdText = showBalances ? `$${displayUsdValue}` : "••••••";
+
+  return <Text style={styles.balanceText}>{displayUsdText}</Text>;
+};
+
+const DynamicSubtitleText = ({ isTestnet }: { isTestnet: boolean }) => {
+  const [scrubDate, setScrubDate] = useState<string | null>(null);
+  
+  useEffect(() => {
+    const sub = DeviceEventEmitter.addListener('onScrub', (payload) => {
+      setScrubDate(payload?.labelDate || null);
+    });
+    return () => sub.remove();
+  }, []);
+
+  const text = scrubDate || (isTestnet ? 'Testnet Portfolio' : 'Total Portfolio Balance');
+
+  return (
+    <Text style={styles.usdText}>{text}</Text>
+  );
+};
+
 export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
   const wallet = useWallet();
   const handledScanIdRef = useRef<string | null>(null);
+  
+  const RANGE_OPTIONS = ['1D', '7D', '30D', '90D', '180D'] as const;
+  const [chartRange, setChartRange] = useState<string>('30D');
+
+  const chartData = useMemo(() => {
+    let currentBal = wallet.totalUsdBalance || 0;
+    if (isNaN(currentBal)) currentBal = 0;
+    
+    if (!wallet.transactions || wallet.transactions.length === 0) {
+      return [{value: currentBal, labelDate: "Today"}, {value: currentBal, labelDate: "Today"}];
+    }
+
+    // Calculate cutoff date based on selected range
+    const now = new Date();
+    const rangeDays: Record<string, number> = { '1D': 1, '7D': 7, '30D': 30, '90D': 90, '180D': 180 };
+    const cutoffMs = now.getTime() - (rangeDays[chartRange] || 30) * 24 * 60 * 60 * 1000;
+    
+    // Sort transactions by date descending (newest first)
+    const allSortedTxs = [...wallet.transactions].sort((a, b) => {
+      const timeA = a.dateTime ? new Date(a.dateTime).getTime() : 0;
+      const timeB = b.dateTime ? new Date(b.dateTime).getTime() : 0;
+      return timeB - timeA;
+    });
+
+    // Filter to only transactions within the selected range
+    const sortedTxs = allSortedTxs.filter(tx => {
+      if (!tx.dateTime) return true;
+      const txTime = new Date(tx.dateTime).getTime();
+      return !isNaN(txTime) && txTime >= cutoffMs;
+    });
+
+    const history = [{ value: currentBal }];
+
+    for (const tx of sortedTxs) {
+      // parse amount from subtitle "1.5 SOL from..."
+      const match = tx.subtitle?.match(/^([\d.]+)\s+([A-Za-z]+)/);
+      let usdDelta = 0;
+      if (match) {
+         const amount = parseFloat(match[1]) || 0;
+         const symbol = match[2].toUpperCase();
+         const tokenInfo = wallet.tokenBalances?.find(b => (b.isNative ? b.network.symbol : b.token?.symbol)?.toUpperCase() === symbol);
+         let price = 0;
+         if (tokenInfo && tokenInfo.balanceValue > 0) {
+           price = tokenInfo.usdValue / tokenInfo.balanceValue;
+         } else {
+           if (symbol === 'BTC') price = 60000;
+           else if (symbol === 'ETH') price = 3000;
+           else if (symbol === 'SOL') price = 150;
+           else if (symbol === 'BNB') price = 600;
+           else if (symbol.includes('USD')) price = 1;
+         }
+         usdDelta = amount * price;
+      }
+      if (isNaN(usdDelta)) usdDelta = 0;
+      
+      // If it was a receive (ArrowDownLeft), going backwards means we subtract
+      if (tx.icon === 'ArrowDownLeft' || tx.amountColor === '#14F195') {
+        currentBal -= usdDelta;
+      } else {
+        currentBal += usdDelta;
+      }
+      
+      if (isNaN(currentBal) || currentBal < 0) currentBal = 0;
+      
+      let labelDate = "Unknown Date";
+      if (tx.dateTime) {
+        const d = new Date(tx.dateTime);
+        if (!isNaN(d.getTime())) {
+          const mm = (d.getMonth() + 1).toString().padStart(2, '0');
+          const dd = d.getDate().toString().padStart(2, '0');
+          const hh = d.getHours().toString().padStart(2, '0');
+          const min = d.getMinutes().toString().padStart(2, '0');
+          labelDate = `${mm}/${dd} ${hh}:${min}`;
+        } else {
+          // Fallback parser for cached legacy strings (e.g. "Jun 30, 2026, 3:00 PM")
+          const match = tx.dateTime.match(/([a-zA-Z]+)\s+(\d+),\s+\d+,\s+(\d+):(\d+)\s+(AM|PM)/i);
+          if (match) {
+            const months: any = {jan:1,feb:2,mar:3,apr:4,may:5,jun:6,jul:7,aug:8,sep:9,oct:10,nov:11,dec:12};
+            const mm = (months[match[1].substring(0, 3).toLowerCase()] || 1).toString().padStart(2, '0');
+            const dd = match[2].padStart(2, '0');
+            let h = parseInt(match[3]);
+            const isPM = match[5].toUpperCase() === 'PM';
+            if (isPM && h < 12) h += 12;
+            if (!isPM && h === 12) h = 0;
+            const hh = h.toString().padStart(2, '0');
+            const min = match[4].padStart(2, '0');
+            labelDate = `${mm}/${dd} ${hh}:${min}`;
+          } else {
+            labelDate = tx.dateTime;
+          }
+        }
+      } else if (tx.date) {
+        labelDate = tx.date;
+      }
+      
+      history.push({ value: currentBal, labelDate });
+    }
+    
+    history.reverse();
+    // Add "Today" to the latest (current) balance point
+    if (history.length > 0) {
+       const d = new Date();
+       const mm = (d.getMonth() + 1).toString().padStart(2, '0');
+       const dd = d.getDate().toString().padStart(2, '0');
+       const hh = d.getHours().toString().padStart(2, '0');
+       const min = d.getMinutes().toString().padStart(2, '0');
+       history[history.length - 1].labelDate = `${mm}/${dd} ${hh}:${min}`;
+    }
+    return history;
+  }, [wallet.transactions, wallet.totalUsdBalance, wallet.tokenBalances, chartRange]);
+
   const searchParams = useLocalSearchParams<{
     scannedAddress?: string;
     scanId?: string;
@@ -147,13 +320,13 @@ export default function DashboardScreen() {
               onPress={() => setWalletsVisible(true)}
               style={styles.iconBox}
             >
-              <User size={20} color="white" />
+              <User size={20} color="rgba(255,255,255,0.7)" />
             </HapticTouchableOpacity>
             <HapticTouchableOpacity
               onPress={() => setSettingsVisible(true)}
               style={styles.iconBox}
             >
-              <Settings size={20} color="white" />
+              <Settings size={20} color="rgba(255,255,255,0.7)" />
             </HapticTouchableOpacity>
           </View>
 
@@ -161,7 +334,7 @@ export default function DashboardScreen() {
             {wallet.isBalanceLoading ? (
               <Text style={styles.balanceText}>...</Text>
             ) : (
-              <Text style={styles.balanceText}>{displayUsdText}</Text>
+              <DynamicBalanceText showBalances={showBalances} defaultUsdValue={wallet.totalUsdBalance} />
             )}
             <HapticTouchableOpacity
               onPress={() => setShowBalances(!showBalances)}
@@ -176,11 +349,7 @@ export default function DashboardScreen() {
           </View>
 
           <View style={styles.usdContainer}>
-            <Text style={styles.usdText}>
-              {wallet.isTestnet
-                ? "Testnet Portfolio"
-                : "Total Portfolio Balance"}
-            </Text>
+            <DynamicSubtitleText isTestnet={wallet.isTestnet} />
           </View>
 
           <View
@@ -189,17 +358,59 @@ export default function DashboardScreen() {
               marginTop: 16,
               marginBottom: 16,
               width: Dimensions.get("window").width + 48,
+              height: 80,
+              overflow: 'hidden',
             }}
           >
-            <View style={{ height: 60, justifyContent: "center" }}>
-              <View
-                style={{
-                  height: 3,
-                  backgroundColor: "rgba(255,255,255,0.3)",
-                  width: Dimensions.get("window").width,
-                }}
-              />
-            </View>
+            <LineChart
+              data={chartData}
+              width={Dimensions.get("window").width}
+              height={80}
+              thickness={2}
+              color="white"
+              hideDataPoints
+              hideRules
+              hideYAxisText
+              hideAxesAndRules
+              isAnimated
+              initialSpacing={0}
+              endSpacing={0}
+              adjustToWidth={true}
+              pointerConfig={{
+                activatePointersOnLongPress: false,
+                activatePointersDelay: 0,
+                pointerStripWidth: 0,
+                pointerStripColor: 'transparent',
+                pointerColor: 'white',
+                radius: 4,
+                pointerLabelWidth: 100,
+                pointerLabelHeight: 30,
+                autoAdjustPointerLabelPosition: true,
+                pointerLabelComponent: (items: any) => <ScrubTooltip items={items} />,
+              }}
+            />
+          </View>
+
+          <View style={styles.rangeContainer}>
+            {RANGE_OPTIONS.map((r) => (
+              <HapticTouchableOpacity
+                key={r}
+                style={[
+                  styles.rangeButton,
+                  chartRange === r && styles.rangeButtonActive,
+                ]}
+                onPress={() => setChartRange(r)}
+              >
+                <Text
+                  style={[
+                    styles.rangeButtonText,
+                    chartRange === r && styles.rangeButtonTextActive,
+                  ]}
+                >
+                  {r.toLowerCase()}
+                </Text>
+              </HapticTouchableOpacity>
+            ))}
           </View>
 
           <View style={styles.actionsContainer}>
@@ -699,4 +910,29 @@ const styles = StyleSheet.create({
   networkTypeBadgeSelected: { backgroundColor: "rgba(255,255,255,0.1)" },
   networkTypeBadgeText: { fontWeight: "600", fontSize: 14 },
   badgeDot: { width: 8, height: 8, borderRadius: 4, marginRight: 8 },
+  rangeContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 6,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  rangeButton: {
+    paddingVertical: 6,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    backgroundColor: 'transparent',
+  },
+  rangeButtonActive: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
+  },
+  rangeButtonText: {
+    color: 'rgba(255,255,255,0.4)',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  rangeButtonTextActive: {
+    color: 'white',
+  },
 });

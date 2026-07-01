@@ -61,6 +61,54 @@ export const SUPPORTED_NETWORKS: Network[] = [
     isTestnet: false,
     coingeckoId: 'solana',
     color: '#14F195'
+  },
+  {
+    id: 'ethereum-sepolia',
+    name: 'Sepolia (Testnet)',
+    type: 'EVM',
+    chainId: 11155111,
+    rpcUrl: 'https://ethereum-sepolia-rpc.publicnode.com',
+    explorerUrl: 'https://sepolia.etherscan.io',
+    symbol: 'ETH',
+    isTestnet: true,
+    coingeckoId: 'ethereum',
+    color: '#627EEA'
+  },
+  {
+    id: 'bnb-testnet',
+    name: 'BNB Testnet',
+    type: 'EVM',
+    chainId: 97,
+    rpcUrl: 'https://bsc-testnet-rpc.publicnode.com',
+    explorerUrl: 'https://testnet.bscscan.com',
+    symbol: 'tBNB',
+    isTestnet: true,
+    coingeckoId: 'binancecoin',
+    color: '#F3BA2F'
+  },
+  {
+    id: 'bitcoin-testnet',
+    name: 'Bitcoin Testnet',
+    type: 'BTC',
+    chainId: 0, // N/A for BTC
+    rpcUrl: 'https://mempool.space/testnet/api',
+    explorerUrl: 'https://mempool.space/testnet',
+    symbol: 'tBTC',
+    isTestnet: true,
+    coingeckoId: 'bitcoin',
+    color: '#F7931A'
+  },
+  {
+    id: 'solana-devnet',
+    name: 'Solana Devnet',
+    type: 'SOL',
+    chainId: 103, // devnet
+    rpcUrl: 'https://api.devnet.solana.com',
+    explorerUrl: 'https://explorer.solana.com/?cluster=devnet',
+    symbol: 'SOL',
+    isTestnet: true,
+    coingeckoId: 'solana',
+    color: '#14F195'
   }
 ];
 

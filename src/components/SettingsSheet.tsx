@@ -8,6 +8,7 @@ import {
     View,
     TextInput,
     Keyboard,
+    Switch,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useWallet } from '../context/WalletContext';
@@ -86,8 +87,24 @@ export function SettingsSheet({ visible, onClose, onLogoutSuccess }: Props) {
           <>
             <Text style={styles.title}>Settings</Text>
 
-
-
+            <View style={styles.toggleRow}>
+              <View style={{ flex: 1, marginRight: 16 }}>
+                <Text style={{ color: 'white', fontSize: 16, fontWeight: '600', marginBottom: 4 }}>
+                  Testnet Mode
+                </Text>
+                <Text style={{ color: 'rgba(255,255,255,0.5)', fontSize: 13, lineHeight: 18 }}>
+                  Show test networks instead of main networks. Testnet tokens have no real value.
+                </Text>
+              </View>
+              <Switch
+                value={wallet.isTestnet}
+                onValueChange={(val) => {
+                  wallet.setIsTestnet(val);
+                }}
+                trackColor={{ false: 'rgba(255,255,255,0.1)', true: '#A855F7' }}
+                thumbColor="white"
+              />
+            </View>
             <HapticTouchableOpacity style={styles.actionButton} onPress={() => {
               setNewName(activeWallet?.name || '');
               setStep('rename');

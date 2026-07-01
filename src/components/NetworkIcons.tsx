@@ -46,10 +46,13 @@ export const BtcIcon = ({ size = 40 }: IconProps) => (
 export const getNetworkIcon = (symbol: string, size: number = 40) => {
   switch (symbol.toUpperCase()) {
     case 'ETH':
+    case 'SEPOLIAETH':
       return <EthIcon size={size} />;
     case 'BTC':
+    case 'TBTC':
       return <BtcIcon size={size} />;
     case 'BNB':
+    case 'TBNB':
       return <BnbIcon size={size} />;
     case 'SOL':
       return <SolIcon size={size} />;

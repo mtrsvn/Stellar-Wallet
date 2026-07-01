@@ -89,24 +89,56 @@ export class EthService {
         return [];
       }
 
-      const url = `${apiUrl}?module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&page=1&offset=20&sort=desc`;
-      const response = await fetch(url);
-      const data = await response.json();
-      if (data.status !== "1") return [];
+      const txUrl = `${apiUrl}?module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&page=1&offset=20&sort=desc`;
+      const tokenUrl = `${apiUrl}?module=account&action=tokentx&address=${address}&startblock=0&endblock=99999999&page=1&offset=20&sort=desc`;
+      
+      const [txRes, tokenRes] = await Promise.all([
+        fetch(txUrl).catch(() => null),
+        fetch(tokenUrl).catch(() => null)
+      ]);
 
-      let txs = data.result;
-      if (Array.isArray(txs)) {
-        txs.sort(
-          (a: any, b: any) =>
-            parseInt(b.timeStamp || "0") - parseInt(a.timeStamp || "0"),
-        );
-      } else {
-        txs = [];
+      let allTxs: any[] = [];
+
+      if (txRes && txRes.ok) {
+        const txData = await txRes.json();
+        if (txData.status === "1" && Array.isArray(txData.result)) {
+          allTxs = [...allTxs, ...txData.result];
+        }
       }
 
-      return txs.map((tx: any) => {
+      if (tokenRes && tokenRes.ok) {
+        const tokenData = await tokenRes.json();
+        if (tokenData.status === "1" && Array.isArray(tokenData.result)) {
+          allTxs = [...allTxs, ...tokenData.result];
+        }
+      }
+
+      // Deduplicate by hash (if a normal tx is also a token tx, keep the token tx to show the token amount)
+      const uniqueTxs = new Map();
+      for (const tx of allTxs) {
+        // If it has tokenSymbol, it's a token transfer. We prefer this over the normal tx.
+        if (tx.tokenSymbol || !uniqueTxs.has(tx.hash)) {
+          uniqueTxs.set(tx.hash, tx);
+        }
+      }
+
+      let txs = Array.from(uniqueTxs.values());
+      txs.sort((a: any, b: any) => parseInt(b.timeStamp || "0") - parseInt(a.timeStamp || "0"));
+
+      return txs.slice(0, 20).map((tx: any) => {
         const isIncoming = tx.to?.toLowerCase() === address.toLowerCase();
-        const value = parseFloat(ethers.formatEther(tx.value || "0")).toFixed(3);
+        
+        let valueStr = "0";
+        let symbol = network.symbol;
+        if (tx.tokenSymbol) {
+          const decimals = parseInt(tx.tokenDecimal || "18");
+          valueStr = ethers.formatUnits(tx.value || "0", decimals);
+          symbol = tx.tokenSymbol;
+        } else {
+          valueStr = ethers.formatEther(tx.value || "0");
+        }
+        
+        const value = parseFloat(valueStr).toFixed(3);
         const txDate = new Date(parseInt(tx.timeStamp) * 1000);
         const date = txDate.toLocaleDateString();
         const dateTime = formatDateTime(txDate);
@@ -117,17 +149,24 @@ export class EthService {
         const shortTo = tx.to
           ? `${tx.to.substring(0, 4)}...${tx.to.substring(tx.to.length - 4)}`
           : "";
-        const subtitle = `${value} ${network.symbol} ${isIncoming ? "from" : "to"} ${isIncoming ? shortFrom : shortTo}`;
+        
+        let actionStr = isIncoming ? "Received" : "Sent";
+        // If value is 0 and it's a normal tx, it might be a contract interaction (like an approval or failed transfer)
+        if (parseFloat(value) === 0 && !tx.tokenSymbol) {
+           actionStr = "Contract Call";
+        }
+        
+        const subtitle = `${value} ${symbol} ${isIncoming ? "from" : "to"} ${isIncoming ? shortFrom : shortTo}`;
 
         return {
-          title: isIncoming ? `Received ${network.symbol}` : `Sent ${network.symbol}`,
+          title: `${actionStr} ${symbol}`,
           subtitle,
           date,
-          dateTime,
-          icon: isIncoming ? "ArrowDownLeft" : "ArrowUpRight",
+          dateTime: txDate.toISOString(),
+          icon: actionStr === "Contract Call" ? "HelpCircle" : isIncoming ? "ArrowDownLeft" : "ArrowUpRight",
         };
       });
-    } catch {
+    } catch (e) {
       return [];
     }
   }

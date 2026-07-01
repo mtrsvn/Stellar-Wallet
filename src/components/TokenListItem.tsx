@@ -42,7 +42,7 @@ export function TokenListItem({ item, hideBalance }: TokenListItemProps) {
       </View>
       
       <View style={styles.balanceContainer}>
-        <Text style={styles.usdText}>{hideBalance ? '••••' : `$${item.usdValue.toFixed(2)}`}</Text>
+        <Text style={styles.usdText}>{hideBalance ? '••••' : `$${(!isNaN(item.usdValue) && item.usdValue !== null) ? item.usdValue.toFixed(2) : '0.00'}`}</Text>
         <Text style={styles.balanceText}>{hideBalance ? '••••' : item.balanceStr}</Text>
       </View>
     </View>

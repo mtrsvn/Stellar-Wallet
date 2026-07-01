@@ -81,19 +81,84 @@ export class SolService {
       const pubKey = new PublicKey(address);
       
       const sigs = await connection.getSignaturesForAddress(pubKey, { limit: 10 });
+      if (sigs.length === 0) return [];
       
-      return sigs.map(sig => ({
-        title: sig.err ? 'Failed Transaction' : 'Solana Transaction',
-        subtitle: `Slot: ${sig.slot}`,
-        date: sig.blockTime ? new Date(sig.blockTime * 1000).toLocaleDateString() : 'Unknown Date',
-        dateTime: sig.blockTime ? new Date(sig.blockTime * 1000).toISOString() : new Date().toISOString(),
-        amount: 'N/A',
-        delta: '0',
-        amountColor: 'white',
-        icon: 'HelpCircle',
-        from: 'Solana Network',
-        hash: sig.signature
-      }));
+      const txs = await connection.getParsedTransactions(sigs.map(s => s.signature), { maxSupportedTransactionVersion: 0 });
+      
+      return sigs.map((sig, index) => {
+        const parsedTx = txs[index];
+        let amountStr = 'N/A';
+        let delta = '0';
+        let symbol = 'SOL';
+        let isToken = false;
+        
+        if (parsedTx && !sig.err) {
+          const preTokenBalances = parsedTx.meta?.preTokenBalances || [];
+          const postTokenBalances = parsedTx.meta?.postTokenBalances || [];
+          
+          const preToken = preTokenBalances.find(b => b.owner === address);
+          const postToken = postTokenBalances.find(b => b.owner === address);
+          
+          if (preToken || postToken) {
+            const preAmt = preToken?.uiTokenAmount?.uiAmount || 0;
+            const postAmt = postToken?.uiTokenAmount?.uiAmount || 0;
+            const diff = postAmt - preAmt;
+            
+            if (diff !== 0) {
+              isToken = true;
+              delta = diff > 0 ? '+' : '-';
+              amountStr = `${Math.abs(diff).toFixed(4)}`;
+              // Very basic symbol detection based on popular testnet mints
+              const mint = (postToken?.mint || preToken?.mint || '').toString();
+              if (mint === 'Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB') symbol = 'USDT';
+              else if (mint === 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v') symbol = 'USDC';
+              else if (mint === '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU') symbol = 'USDC';
+              else symbol = 'SPL';
+              
+              amountStr += ` ${symbol}`;
+            }
+          }
+          
+          if (!isToken) {
+            const preBalances = parsedTx.meta?.preBalances || [];
+            const postBalances = parsedTx.meta?.postBalances || [];
+            const accountKeys = parsedTx.transaction.message.accountKeys;
+            
+            const accountIndex = accountKeys.findIndex(k => {
+              const pk = typeof k.pubkey === 'string' ? k.pubkey : (k.pubkey?.toBase58 ? k.pubkey.toBase58() : k.pubkey?.toString());
+              return pk === address;
+            });
+
+            if (accountIndex !== -1 && preBalances[accountIndex] !== undefined && postBalances[accountIndex] !== undefined) {
+              const diff = postBalances[accountIndex] - preBalances[accountIndex];
+              // Ignore exact fee deduction for SOL if it's just a fee (-5000 lamports)
+              if (diff !== 0 && diff !== -5000) {
+                delta = diff > 0 ? '+' : '-';
+                amountStr = `${(Math.abs(diff) / 1e9).toFixed(4)} SOL`;
+              }
+            }
+          }
+        }
+
+        let title = `Solana Transaction`;
+        if (sig.err) title = 'Failed Transaction';
+        else if (delta === '+') title = `Received ${symbol}`;
+        else if (delta === '-') title = `Sent ${symbol}`;
+        else if (amountStr === 'N/A') title = 'Contract Interaction';
+        
+        return {
+          title,
+          subtitle: `Slot: ${sig.slot}`,
+          date: sig.blockTime ? new Date(sig.blockTime * 1000).toLocaleDateString() : 'Unknown Date',
+          dateTime: sig.blockTime ? new Date(sig.blockTime * 1000).toISOString() : new Date().toISOString(),
+          amount: amountStr !== 'N/A' ? (delta === '+' ? `+${amountStr}` : `-${amountStr}`) : 'N/A',
+          delta,
+          amountColor: delta === '+' ? '#14F195' : 'white',
+          icon: amountStr === 'N/A' ? 'HelpCircle' : delta === '+' ? 'ArrowDownLeft' : delta === '-' ? 'ArrowUpRight' : 'HelpCircle',
+          from: 'Solana Network',
+          hash: sig.signature
+        };
+      });
     } catch (e) {
       console.error('SolService getTransactions Error:', e);
       return [];

@@ -71,13 +71,14 @@ export class WalletCore {
     return wallet.privateKey;
   }
 
-  static getBtcAddress(mnemonic: string, index: number = 0): string {
+  static getBtcAddress(mnemonic: string, index: number = 0, isTestnet: boolean = false): string {
     try {
-      const path = `m/84'/0'/0'/0/${index}`;
+      const path = isTestnet ? `m/84'/1'/0'/0/${index}` : `m/84'/0'/0'/0/${index}`;
       const wallet = ethers.HDNodeWallet.fromMnemonic(ethers.Mnemonic.fromPhrase(mnemonic), path);
       
       const pubkeyBuffer = Buffer.from(wallet.publicKey.slice(2), 'hex');
-      const { address } = bitcoin.payments.p2wpkh({ pubkey: pubkeyBuffer });
+      const network = isTestnet ? bitcoin.networks.testnet : bitcoin.networks.bitcoin;
+      const { address } = bitcoin.payments.p2wpkh({ pubkey: pubkeyBuffer, network });
       
       return address || '';
     } catch (e) {

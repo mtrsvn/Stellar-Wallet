@@ -7,7 +7,7 @@ export class BtcService {
     try {
       if (!address) return '0.0 BTC';
       const response = await fetch(`${network.rpcUrl}/address/${address}`);
-      if (!response.ok) throw new Error('Failed to fetch BTC balance');
+      if (!response.ok) return '0.0 BTC'; // Fail silently if address has no txs or rate limited
       const data = await response.json();
       
       const satoshis = data.chain_stats.funded_txo_sum - data.chain_stats.spent_txo_sum;
@@ -15,7 +15,6 @@ export class BtcService {
       
       return `${btc.toFixed(6)} BTC`;
     } catch (e) {
-      console.error('BtcService getBalance Error:', e);
       return '0.0 BTC';
     }
   }
@@ -115,7 +114,7 @@ export class BtcService {
     try {
       if (!address) return [];
       const response = await fetch(`${network.rpcUrl}/address/${address}/txs`);
-      if (!response.ok) throw new Error('Failed to fetch BTC txs');
+      if (!response.ok) return []; // Fail silently if address has no txs or rate limited
       const txs = await response.json();
       
       return txs.slice(0, 10).map((tx: any) => {
@@ -141,7 +140,6 @@ export class BtcService {
         };
       });
     } catch (e) {
-      console.error('BtcService getTransactions Error:', e);
       return [];
     }
   }

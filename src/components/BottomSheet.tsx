@@ -106,8 +106,13 @@ export function BottomSheet({ visible, onClose, children, avoidKeyboard = false 
     }
   }, [visible]);
 
+  const avoidKeyboardRef = useRef(avoidKeyboard);
   useEffect(() => {
-    if (!visible || !avoidKeyboard) {
+    avoidKeyboardRef.current = avoidKeyboard;
+  }, [avoidKeyboard]);
+
+  useEffect(() => {
+    if (!visible) {
       resetKeyboardOffset();
       return;
     }
@@ -116,11 +121,13 @@ export function BottomSheet({ visible, onClose, children, avoidKeyboard = false 
     const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
 
     const subShow = Keyboard.addListener(showEvent, (e) => {
-      Animated.timing(kbHeight, {
-        toValue: e.endCoordinates.height,
-        duration: e.duration || 250,
-        useNativeDriver: false,
-      }).start();
+      if (avoidKeyboardRef.current) {
+        Animated.timing(kbHeight, {
+          toValue: e.endCoordinates.height,
+          duration: e.duration || 250,
+          useNativeDriver: false,
+        }).start();
+      }
     });
 
     const subHide = Keyboard.addListener(hideEvent, (e) => {
@@ -136,7 +143,25 @@ export function BottomSheet({ visible, onClose, children, avoidKeyboard = false 
       subHide.remove();
       resetKeyboardOffset();
     };
-  }, [visible, avoidKeyboard]);
+  }, [visible]);
+
+  // When avoidKeyboard toggles to true, we might have missed the event.
+  // The safest way is to use KeyboardMetrics if available, or just rely on the above ref fix.
+  // The primary bug was re-subscribing while the event was firing.
+  useEffect(() => {
+    if (!avoidKeyboard) {
+      resetKeyboardOffset(true);
+    } else {
+      const metrics = Keyboard.metrics();
+      if (metrics) {
+        Animated.timing(kbHeight, {
+          toValue: metrics.height,
+          duration: 250,
+          useNativeDriver: false,
+        }).start();
+      }
+    }
+  }, [avoidKeyboard]);
 
   if (!mounted) return null;
 

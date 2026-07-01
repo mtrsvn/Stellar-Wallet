@@ -91,6 +91,7 @@ interface WalletContextType {
   setIsTestnet: (val: boolean) => void;
   tokenBalances: TokenBalance[];
   totalUsdBalance: number;
+  portfolioHistory: number[];
   transactions: Transaction[];
   isBalanceLoading: boolean;
   isTransactionsLoading: boolean;
@@ -128,6 +129,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [isTestnet, setIsTestnet] = useState(false);
   const [tokenBalances, setTokenBalances] = useState<TokenBalance[]>([]);
   const [totalUsdBalance, setTotalUsdBalance] = useState(0);
+  const [portfolioHistory, setPortfolioHistory] = useState<number[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [isBalanceLoading, setIsBalanceLoading] = useState(false);
   const [isTransactionsLoading, setIsTransactionsLoading] = useState(false);
@@ -144,10 +146,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    let timeout: NodeJS.Timeout;
     if (evmAddress || btcAddress || solAddress) {
-      loadWalletData({ evmAddress, btcAddress, solAddress });
+      timeout = setTimeout(() => {
+        loadWalletData({ evmAddress, btcAddress, solAddress });
+      }, 500); // Wait 500ms for animations to finish before locking JS thread
     }
-  }, [isTestnet]);
+    return () => clearTimeout(timeout);
+  }, [evmAddress, btcAddress, solAddress, isTestnet]);
 
   const initWallet = async () => {
     try {
@@ -168,6 +174,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setIsLocked(locked === 'true');
       const lUntil = await safeGetItemAsync('locked_until');
       setLockedUntil(lUntil || null);
+
+      const histStr = await safeGetItemAsync('portfolio_history');
+      if (histStr) {
+        try {
+          setPortfolioHistory(JSON.parse(histStr));
+        } catch(e) {}
+      }
 
       let wallets: SavedWallet[] = [];
       const storedWalletsStr = await safeGetItemAsync('saved_wallets');
@@ -206,8 +219,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         setEvmAddress(activeWallet.evmAddress);
         setBtcAddress(activeWallet.btcAddress);
         setSolAddress(activeWallet.solAddress);
-        
-        await loadWalletData(activeWallet);
       }
     } catch (e) {
       console.error('initWallet error:', e);
@@ -217,6 +228,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   };
 
   const handleSetIsTestnet = async (val: boolean) => {
+    setTokenBalances([]);
+    setTransactions([]);
+    setTotalUsdBalance(0);
     setIsTestnet(val);
     await safeSetItemAsync('is_testnet', val ? 'true' : 'false');
   };
@@ -230,7 +244,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const getAddressForNetwork = (network: Network, addrs: { evmAddress: string, btcAddress: string, solAddress: string }) => {
     if (network.type === 'EVM') return addrs.evmAddress;
-    if (network.type === 'BTC') return addrs.btcAddress;
+    if (network.type === 'BTC') {
+      if (network.isTestnet) {
+        const activeW = savedWallets.find(w => w.id === activeWalletId);
+        if (activeW) {
+          return WalletCore.getBtcAddress(activeW.mnemonic, 0, true);
+        }
+      }
+      return addrs.btcAddress;
+    }
     if (network.type === 'SOL') return addrs.solAddress;
     return '';
   };
@@ -267,7 +289,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         }
 
         const numVal = parseFloat(balStr.split(' ')[0]) || 0;
-        const usdVal = numVal * (prices[net.coingeckoId] || 0);
+        let price = Number(prices[net.coingeckoId]);
+        if (isNaN(price)) price = 0;
+        let usdVal = numVal * price;
+        if (isNaN(usdVal)) usdVal = 0;
         
         totalUsd += usdVal;
         balancesList.push({
@@ -294,7 +319,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           }
 
           const tNumVal = parseFloat(tokenBalStr) || 0;
-          const tUsdVal = tNumVal * (prices[token.coingeckoId] || 0);
+          let tPrice = Number(prices[token.coingeckoId]);
+          if (isNaN(tPrice)) tPrice = 0;
+          let tUsdVal = tNumVal * tPrice;
+          if (isNaN(tUsdVal)) tUsdVal = 0;
           
           totalUsd += tUsdVal;
           balancesList.push({
@@ -314,13 +342,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
         if (b.isNative) {
           const sym = b.network.symbol.toUpperCase();
-          return ['BTC', 'ETH', 'BNB', 'SOL'].includes(sym);
+          return ['BTC', 'ETH', 'BNB', 'SOL', 'TBTC', 'TBNB'].includes(sym);
         } else {
           const sym = b.token?.symbol.toUpperCase();
-          const isEthNetwork = b.network.id === 'ethereum-mainnet' || b.network.id === 'ethereum-sepolia';
-          if (isEthNetwork && sym && ['USDT', 'USDC', 'LINK', 'UNI', 'SHIB', 'PEPE'].includes(sym)) {
-            return true;
-          }
+          if (!sym) return false;
+          
+          if (b.network.id.includes('ethereum') && ['USDT', 'USDC', 'LINK', 'UNI', 'SHIB', 'PEPE'].includes(sym)) return true;
+          if (b.network.id.includes('bnb') && ['USDT', 'BUSD', 'CAKE'].includes(sym)) return true;
+          if (b.network.id.includes('solana') && ['USDT', 'USDC'].includes(sym)) return true;
+          
           return false;
         }
       });
@@ -344,7 +374,17 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       });
 
       setTokenBalances(filteredBalancesList);
+      if (isNaN(totalUsd)) totalUsd = 0;
       setTotalUsdBalance(totalUsd);
+      
+      // Update history array
+      setPortfolioHistory(prev => {
+        const newHist = [...prev, totalUsd];
+        if (newHist.length > 50) newHist.shift(); // keep last 50 points
+        if (newHist.length === 1) newHist.unshift(totalUsd * 0.95); // add a point so we always have a line
+        safeSetItemAsync('portfolio_history', JSON.stringify(newHist));
+        return newHist;
+      });
     } catch (e) {
       console.error("fetchBalances error", e);
     } finally {
@@ -375,6 +415,46 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           console.error(`Failed to fetch txs for ${net.name}:`, e);
         }
       }
+
+      // Inject mock transactions for UI testing as requested by user
+      const mockTxs = [
+        {
+          title: "Received BNB", subtitle: "2.5 BNB from 0x8A2...9F1b", date: new Date().toLocaleDateString(),
+          dateTime: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), amountColor: '#14F195', icon: "ArrowDownLeft", networkId: "bnb-mainnet"
+        },
+        {
+          title: "Sent tBNB", subtitle: "0.5 tBNB to 0x1B3...4A2c", date: new Date().toLocaleDateString(),
+          dateTime: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), amountColor: 'white', icon: "ArrowUpRight", networkId: "bnb-testnet"
+        },
+        {
+          title: "Received ETH", subtitle: "1.2 ETH from 0x7F1...3B2a", date: new Date(Date.now() - 1000 * 60 * 60 * 48).toLocaleDateString(),
+          dateTime: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(), amountColor: '#14F195', icon: "ArrowDownLeft", networkId: "ethereum-mainnet"
+        },
+        {
+          title: "Sent USDC", subtitle: "500 USDC to 0x9D2...1C4e", date: new Date(Date.now() - 1000 * 60 * 60 * 72).toLocaleDateString(),
+          dateTime: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString(), amountColor: 'white', icon: "ArrowUpRight", networkId: "ethereum-mainnet"
+        },
+        {
+          title: "Received SOL", subtitle: "15 SOL from 7X1...9Y2z", date: new Date(Date.now() - 1000 * 60 * 60 * 96).toLocaleDateString(),
+          dateTime: new Date(Date.now() - 1000 * 60 * 60 * 96).toISOString(), amountColor: '#14F195', icon: "ArrowDownLeft", networkId: "solana-mainnet"
+        },
+        {
+          title: "Received BTC", subtitle: "0.05 BTC from 3J9...8K1p", date: new Date(Date.now() - 1000 * 60 * 60 * 120).toLocaleDateString(),
+          dateTime: new Date(Date.now() - 1000 * 60 * 60 * 120).toISOString(), amountColor: '#14F195', icon: "ArrowDownLeft", networkId: "bitcoin-mainnet"
+        },
+        {
+          title: "Sent tBTC", subtitle: "0.01 tBTC to 2M1...5N9q", date: new Date(Date.now() - 1000 * 60 * 60 * 144).toLocaleDateString(),
+          dateTime: new Date(Date.now() - 1000 * 60 * 60 * 144).toISOString(), amountColor: 'white', icon: "ArrowUpRight", networkId: "bitcoin-testnet"
+        }
+      ];
+
+      // Filter mock txs based on current mode (Testnet vs Mainnet)
+      const filteredMocks = mockTxs.filter(mock => {
+         const isMockTestnet = mock.networkId.includes('testnet') || mock.networkId.includes('sepolia') || mock.networkId.includes('devnet');
+         return isTestnet ? isMockTestnet : !isMockTestnet;
+      });
+
+      allTxs = [...allTxs, ...filteredMocks];
 
       // Sort globally
       allTxs.sort((a, b) => new Date(b.dateTime || 0).getTime() - new Date(a.dateTime || 0).getTime());
@@ -410,7 +490,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setEvmAddress(evm);
     setBtcAddress(btc);
     setSolAddress(sol);
-    await loadWalletData(newWallet);
   };
 
   const switchWallet = async (id: string) => {
@@ -422,7 +501,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setEvmAddress(wallet.evmAddress);
     setBtcAddress(wallet.btcAddress);
     setSolAddress(wallet.solAddress);
-    await loadWalletData(wallet);
   };
 
   const savePin = async (pin: string) => {
@@ -525,8 +603,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     <WalletContext.Provider value={{
       isLoading, isCreated, savedWallets, activeWalletId, 
       evmAddress, btcAddress, solAddress,
-      isTestnet, setIsTestnet: handleSetIsTestnet, tokenBalances, totalUsdBalance,
-      transactions, isBalanceLoading, isTransactionsLoading,
+      isTestnet, setIsTestnet: handleSetIsTestnet,
+      tokenBalances, totalUsdBalance, portfolioHistory, transactions, isBalanceLoading, isTransactionsLoading,
       userPin, biometricEnabled, pinAttempt, isLocked, lockedUntil,
       savePin, verifyPin, setBiometrics, updatePinAttempts, markCreated,
       loadAccounts, refreshData, logout, removeActiveWallet, renameActiveWallet, switchWallet, addNewWallet,

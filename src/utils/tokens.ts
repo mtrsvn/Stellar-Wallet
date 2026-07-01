@@ -154,6 +154,48 @@ export const SUPPORTED_TOKENS: Token[] = [
     decimals: 6,
     logoUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/solana/assets/Es9vMFrzaCERmJfrF4H2FYD4KCoNkY11McCe8BenwNYB/logo.png',
     coingeckoId: 'tether'
+  },
+
+  // Testnet Tokens
+  {
+    id: 'sep-usdc',
+    networkId: 'ethereum-sepolia',
+    address: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+    name: 'Testnet USDC',
+    symbol: 'USDC',
+    decimals: 6,
+    logoUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48/logo.png',
+    coingeckoId: 'usd-coin'
+  },
+  {
+    id: 'sep-link',
+    networkId: 'ethereum-sepolia',
+    address: '0x779877A7B0D9E8603169DdbD7836e478b4624789',
+    name: 'Testnet Chainlink',
+    symbol: 'LINK',
+    decimals: 18,
+    logoUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/ethereum/assets/0x514910771AF9Ca656af840dff83E8264EcF986CA/logo.png',
+    coingeckoId: 'chainlink'
+  },
+  {
+    id: 'bnb-test-busd',
+    networkId: 'bnb-testnet',
+    address: '0xed24fc36d5ee211ea25a80239fb8c4cfd80f12ee',
+    name: 'Testnet BUSD',
+    symbol: 'BUSD',
+    decimals: 18,
+    logoUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/smartchain/assets/0xe9e7CEA3DedcA5984780Bafc599bD69ADd087D56/logo.png',
+    coingeckoId: 'binance-usd'
+  },
+  {
+    id: 'sol-dev-usdc',
+    networkId: 'solana-devnet',
+    address: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
+    name: 'Testnet USDC',
+    symbol: 'USDC',
+    decimals: 6,
+    logoUrl: 'https://raw.githubusercontent.com/trustwallet/assets/master/blockchains/solana/assets/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v/logo.png',
+    coingeckoId: 'usd-coin'
   }
 ];
 
