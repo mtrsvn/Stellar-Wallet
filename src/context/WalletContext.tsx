@@ -116,6 +116,16 @@ interface WalletContextType {
 
 const WalletContext = createContext<WalletContextType | null>(null);
 
+const withTimeout = async <T,>(promise: Promise<T>, ms: number, fallback: T): Promise<T> => {
+  let timeout: ReturnType<typeof setTimeout>;
+  return Promise.race([
+    promise,
+    new Promise<T>((resolve) => {
+      timeout = setTimeout(() => resolve(fallback), ms);
+    }),
+  ]).finally(() => clearTimeout(timeout));
+};
+
 export function WalletProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isCreated, setIsCreated] = useState(false);
@@ -267,7 +277,21 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           if (!coinIds.includes(t.coingeckoId)) coinIds.push(t.coingeckoId);
         });
       });
+      ['usd-coin', 'tether', 'chainlink', 'dai', 'binance-usd', 'pancakeswap-token'].forEach(id => {
+        if (!coinIds.includes(id)) coinIds.push(id);
+      });
       const prices = await PriceService.fetchPrices(coinIds);
+      const symbolPrices = new Map<string, number>();
+      activeNetworks.forEach(net => {
+        const price = Number(prices[net.coingeckoId]) || 0;
+        if (price > 0) symbolPrices.set(net.symbol.toUpperCase(), price);
+      });
+      activeNetworks.forEach(net => {
+        getTokensByNetworkId(net.id).forEach(token => {
+          const price = Number(prices[token.coingeckoId]) || 0;
+          if (price > 0) symbolPrices.set(token.symbol.toUpperCase(), price);
+        });
+      });
 
       let totalUsd = 0;
       const balancesList: TokenBalance[] = [];
@@ -304,8 +328,83 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           usdValue: usdVal
         });
 
-        // Fetch tokens for this network
-        const networkTokens = getTokensByNetworkId(net.id);
+        const featuredTokens = getTokensByNetworkId(net.id);
+        let discoveredTokens: Token[] = [];
+
+        try {
+          if (net.type === 'EVM') {
+            const evmDiscovered = await withTimeout(
+              EthService.discoverTokens(addr, net),
+              5000,
+              []
+            );
+            discoveredTokens = evmDiscovered.map(token => ({
+              id: `discovered-${net.id}-${token.address.toLowerCase()}`,
+              networkId: net.id,
+              address: token.address,
+              name: token.name,
+              symbol: token.symbol,
+              decimals: token.decimals,
+              logoUrl: '',
+              coingeckoId: '',
+            }));
+          } else if (net.type === 'SOL') {
+            const solDiscovered = await withTimeout(
+              SolService.discoverTokens(addr, net),
+              1500,
+              []
+            );
+            discoveredTokens = solDiscovered.map(token => ({
+              id: `discovered-${net.id}-${token.address}`,
+              networkId: net.id,
+              address: token.address,
+              name: token.name,
+              symbol: token.symbol,
+              decimals: token.decimals,
+              logoUrl: '',
+              coingeckoId: '',
+            }));
+          }
+        } catch (e) {
+          console.error(`Failed to discover tokens for ${net.name}:`, e);
+        }
+
+        const tokenMap = new Map<string, Token>();
+        [...featuredTokens, ...discoveredTokens].forEach(token => {
+          tokenMap.set(`${token.networkId}:${token.address.toLowerCase()}`, token);
+        });
+        const networkTokens = Array.from(tokenMap.values());
+        const contractPrices = await withTimeout(
+          PriceService.fetchTokenPrices(
+            net,
+            networkTokens
+              .filter(token => !token.coingeckoId)
+              .map(token => token.address)
+          ),
+          1500,
+          {}
+        );
+        const coingeckoTokenData = await withTimeout(
+          PriceService.fetchCoinGeckoTokenData(
+            net,
+            networkTokens
+              .filter(token => !token.coingeckoId)
+              .map(token => token.address)
+          ),
+          2500,
+          {}
+        );
+        const dexTokenData = await withTimeout(
+          PriceService.fetchDexScreenerTokenData(
+            net,
+            networkTokens
+              .filter(token => !token.coingeckoId)
+              .map(token => token.address)
+          ),
+          1500,
+          {}
+        );
+
         for (const token of networkTokens) {
           let tokenBalStr = '0.000000';
           try {
@@ -319,17 +418,55 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           }
 
           const tNumVal = parseFloat(tokenBalStr) || 0;
-          let tPrice = Number(prices[token.coingeckoId]);
+          let tPrice = token.coingeckoId
+            ? Number(prices[token.coingeckoId])
+            : Number(contractPrices[net.type === 'SOL' ? token.address : token.address.toLowerCase()]);
+          if (!tPrice || isNaN(tPrice)) {
+            const marketDataKey = net.type === 'SOL' ? token.address : token.address.toLowerCase();
+            tPrice = Number(coingeckoTokenData[marketDataKey]?.price) || 0;
+          }
+          if (!tPrice || isNaN(tPrice)) {
+            const marketDataKey = net.type === 'SOL' ? token.address : token.address.toLowerCase();
+            tPrice = Number(dexTokenData[marketDataKey]?.price) || 0;
+          }
+          if (!tPrice || isNaN(tPrice)) {
+            const sym = token.symbol.toUpperCase();
+            const mainnetEquivalent = net.isTestnet
+              ? PriceService.getMainnetEquivalentToken(sym, net)
+              : null;
+            if (mainnetEquivalent?.coingeckoId) {
+              tPrice = Number(prices[mainnetEquivalent.coingeckoId]) || 0;
+            }
+            if (!tPrice) tPrice = symbolPrices.get(sym) || 0;
+            if (!tPrice && ['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'USDP', 'PYUSD'].includes(sym)) tPrice = 1;
+            if (!tPrice && ['WETH', 'ETH'].includes(sym)) tPrice = symbolPrices.get('ETH') || 0;
+            if (!tPrice && ['WBNB', 'BNB'].includes(sym)) tPrice = symbolPrices.get('BNB') || symbolPrices.get('TBNB') || 0;
+            if (!tPrice && ['WBTC', 'BTC'].includes(sym)) tPrice = symbolPrices.get('BTC') || symbolPrices.get('TBTC') || 0;
+            if (!tPrice && ['WSOL', 'SOL'].includes(sym)) tPrice = symbolPrices.get('SOL') || 0;
+          }
           if (isNaN(tPrice)) tPrice = 0;
           let tUsdVal = tNumVal * tPrice;
           if (isNaN(tUsdVal)) tUsdVal = 0;
           
           totalUsd += tUsdVal;
+          const marketDataKey = net.type === 'SOL' ? token.address : token.address.toLowerCase();
+          const mainnetEquivalent = net.isTestnet
+            ? PriceService.getMainnetEquivalentToken(token.symbol, net)
+            : null;
+          const enrichedToken = {
+            ...token,
+            logoUrl:
+              coingeckoTokenData[marketDataKey]?.logoUrl ||
+              dexTokenData[marketDataKey]?.logoUrl ||
+              mainnetEquivalent?.logoUrl ||
+              token.logoUrl ||
+              PriceService.getTokenLogoUrl(net, token.address),
+          };
           balancesList.push({
             id: token.id,
             isNative: false,
             network: net,
-            token: token,
+            token: enrichedToken,
             balanceStr: tNumVal > 0 ? `${tNumVal.toFixed(4)} ${token.symbol}` : `0.0000 ${token.symbol}`,
             balanceValue: tNumVal,
             usdValue: tUsdVal
@@ -358,6 +495,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       const COIN_ORDER = ["BTC", "ETH", "BNB", "SOL", "USDT", "USDC", "LINK", "UNI", "SHIB", "PEPE"];
 
       filteredBalancesList.sort((a, b) => {
+        const hasBalanceA = Number(a.balanceValue) > 0;
+        const hasBalanceB = Number(b.balanceValue) > 0;
+        if (hasBalanceA !== hasBalanceB) return hasBalanceA ? -1 : 1;
+
         const symA = (a.isNative ? a.network.symbol : a.token?.symbol)?.toUpperCase() || "";
         const symB = (b.isNative ? b.network.symbol : b.token?.symbol)?.toUpperCase() || "";
         

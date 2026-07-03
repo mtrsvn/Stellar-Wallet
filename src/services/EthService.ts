@@ -36,6 +36,131 @@ export class EthService {
     }
   }
 
+  static async getTokenMetadata(tokenAddress: string, network: Network): Promise<{ name: string; symbol: string; decimals: number }> {
+    const provider = this.getProvider(network.rpcUrl);
+    const abi = [
+      "function name() view returns (string)",
+      "function symbol() view returns (string)",
+      "function decimals() view returns (uint8)",
+    ];
+    const contract = new ethers.Contract(tokenAddress, abi, provider);
+    const [name, symbol, decimals] = await Promise.all([
+      contract.name().catch(() => "Custom Token"),
+      contract.symbol(),
+      contract.decimals(),
+    ]);
+
+    return {
+      name: String(name || "Custom Token"),
+      symbol: String(symbol || "TOKEN"),
+      decimals: Number(decimals),
+    };
+  }
+
+  private static getExplorerApiUrl(network: Network) {
+    if (network.id === "ethereum-sepolia") return "https://eth-sepolia.blockscout.com/api";
+    if (network.id === "ethereum-mainnet") return "https://api.etherscan.io/api";
+    if (network.id === "bnb-mainnet") return "https://api.bscscan.com/api";
+    if (network.id === "bnb-testnet") return "https://api-testnet.bscscan.com/api";
+    return "";
+  }
+
+  static async discoverTokens(address: string, network: Network): Promise<Array<{
+    address: string;
+    name: string;
+    symbol: string;
+    decimals: number;
+  }>> {
+    const tokens = new Map<string, { address: string; name: string; symbol: string; decimals: number }>();
+    if (!address) return [];
+
+    try {
+      const apiUrl = this.getExplorerApiUrl(network);
+      if (apiUrl) {
+        const tokenUrl = `${apiUrl}?module=account&action=tokentx&address=${address}&startblock=0&endblock=99999999&page=1&offset=100&sort=desc`;
+        const res = await fetch(tokenUrl).catch(() => null);
+        if (res?.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.result)) {
+            for (const tx of data.result) {
+              if (tokens.size >= 25) break;
+              const tokenAddress = String(tx.contractAddress || "");
+              if (!ethers.isAddress(tokenAddress)) continue;
+
+              const decimals = parseInt(tx.tokenDecimal || "18", 10);
+              tokens.set(tokenAddress.toLowerCase(), {
+                address: tokenAddress,
+                name: String(tx.tokenName || tx.tokenSymbol || "Token"),
+                symbol: String(tx.tokenSymbol || "TOKEN"),
+                decimals: Number.isFinite(decimals) ? decimals : 18,
+              });
+            }
+          }
+        }
+      }
+
+      const logTokenAddresses = await this.discoverRecentReceivedTokenContracts(address, network);
+      for (const tokenAddress of logTokenAddresses) {
+        if (tokens.size >= 25) break;
+        const key = tokenAddress.toLowerCase();
+        if (tokens.has(key)) continue;
+
+        try {
+          const metadata = await this.getTokenMetadata(tokenAddress, network);
+          tokens.set(key, {
+            address: tokenAddress,
+            name: metadata.name,
+            symbol: metadata.symbol,
+            decimals: metadata.decimals,
+          });
+        } catch {}
+      }
+    } catch {
+      // Keep any tokens found before an explorer/RPC failure.
+    }
+
+    return Array.from(tokens.values());
+  }
+
+  private static async discoverRecentReceivedTokenContracts(address: string, network: Network): Promise<string[]> {
+    try {
+      const provider = this.getProvider(network.rpcUrl);
+      const latestBlock = await provider.getBlockNumber();
+      const oldestBlock = Math.max(0, latestBlock - 100000);
+      const chunkSize = 5000;
+      const transferTopic = ethers.id("Transfer(address,address,uint256)");
+      const paddedRecipient = ethers.zeroPadValue(address, 32);
+      const ranges: Array<{ fromBlock: number; toBlock: number }> = [];
+
+      for (let toBlock = latestBlock; toBlock >= oldestBlock; toBlock -= chunkSize) {
+        ranges.push({
+          fromBlock: Math.max(oldestBlock, toBlock - chunkSize + 1),
+          toBlock,
+        });
+        if (ranges.length >= 20) break;
+      }
+
+      const results = await Promise.allSettled(
+        ranges.map(range =>
+          provider.getLogs({
+            ...range,
+            topics: [transferTopic, null, paddedRecipient],
+          })
+        )
+      );
+
+      const tokenContracts = new Set<string>();
+      results.forEach(result => {
+        if (result.status !== 'fulfilled') return;
+        result.value.forEach(log => tokenContracts.add(log.address));
+      });
+
+      return Array.from(tokenContracts).slice(0, 25);
+    } catch {
+      return [];
+    }
+  }
+
   static async sendTransaction(
     privateKey: string,
     toAddress: string,
@@ -48,7 +173,7 @@ export class EthService {
       const provider = this.getProvider(network.rpcUrl);
       const wallet = new ethers.Wallet(privateKey, provider);
       
-      if (tokenAddress && decimals) {
+      if (tokenAddress && decimals !== undefined) {
          const abi = ["function transfer(address to, uint256 value) returns (bool)"];
          const contract = new ethers.Contract(tokenAddress, abi, wallet);
          const amount = ethers.parseUnits(amountStr, decimals);
@@ -71,23 +196,8 @@ export class EthService {
 
   static async getTransactions(address: string, network: Network): Promise<any[]> {
     try {
-      // Very basic URL deduction. In production, define an explicit `apiUrl` on the Network interface.
-      let apiUrl = "";
-      if (network.id === "ethereum-sepolia") {
-        apiUrl = "https://eth-sepolia.blockscout.com/api";
-      } else if (network.id === "ethereum-mainnet") {
-        apiUrl = "https://api.etherscan.io/api";
-      } else if (network.id === "polygon-mainnet") {
-        apiUrl = "https://api.polygonscan.com/api";
-      } else if (network.id === "polygon-amoy") {
-        apiUrl = "https://api-amoy.polygonscan.com/api";
-      } else if (network.id === "bnb-mainnet") {
-        apiUrl = "https://api.bscscan.com/api";
-      } else if (network.id === "bnb-testnet") {
-        apiUrl = "https://api-testnet.bscscan.com/api";
-      } else {
-        return [];
-      }
+      const apiUrl = this.getExplorerApiUrl(network);
+      if (!apiUrl) return [];
 
       const txUrl = `${apiUrl}?module=account&action=txlist&address=${address}&startblock=0&endblock=99999999&page=1&offset=20&sort=desc`;
       const tokenUrl = `${apiUrl}?module=account&action=tokentx&address=${address}&startblock=0&endblock=99999999&page=1&offset=20&sort=desc`;

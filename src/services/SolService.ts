@@ -37,6 +37,46 @@ export class SolService {
     }
   }
 
+  static async discoverTokens(address: string, network: Network): Promise<Array<{
+    address: string;
+    name: string;
+    symbol: string;
+    decimals: number;
+    balance: number;
+  }>> {
+    try {
+      if (!address) return [];
+      const connection = new Connection(network.rpcUrl, 'confirmed');
+      const ownerPubKey = new PublicKey(address);
+      const tokenProgramId = new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA');
+      const response = await connection.getParsedTokenAccountsByOwner(ownerPubKey, {
+        programId: tokenProgramId,
+      });
+
+      return response.value
+        .map((account) => {
+          const info = account.account.data.parsed.info;
+          const mint = String(info.mint || '');
+          const balance = info.tokenAmount?.uiAmount || 0;
+          const decimals = Number(info.tokenAmount?.decimals || 0);
+          const shortMint = mint ? `${mint.slice(0, 4)}...${mint.slice(-4)}` : 'SPL';
+
+          return {
+            address: mint,
+            name: `SPL ${shortMint}`,
+            symbol: 'SPL',
+            decimals,
+            balance,
+          };
+        })
+        .filter((token) => token.address && token.balance > 0)
+        .slice(0, 25);
+    } catch (e) {
+      console.error('SolService discoverTokens Error:', e);
+      return [];
+    }
+  }
+
   static async sendTransaction(
     privateKey: string,
     toAddress: string,

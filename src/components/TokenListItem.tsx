@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { Image } from 'react-native';
 import { TokenBalance } from '../context/WalletContext';
@@ -12,6 +12,11 @@ interface TokenListItemProps {
 export function TokenListItem({ item, hideBalance }: TokenListItemProps) {
   const mainSymbol = item.isNative ? item.network.symbol : item.token?.symbol || 'UNK';
   const mainName = item.isNative ? item.network.name : item.token?.name || 'Unknown Token';
+  const [imageFailed, setImageFailed] = useState(false);
+
+  useEffect(() => {
+    setImageFailed(false);
+  }, [item.token?.logoUrl]);
   
   return (
     <View style={styles.container}>
@@ -22,10 +27,16 @@ export function TokenListItem({ item, hideBalance }: TokenListItemProps) {
           </View>
         ) : (
           <View style={styles.mainIcon}>
-            {item.token?.logoUrl ? (
-              <Image source={{ uri: item.token.logoUrl }} style={{ width: 44, height: 44, borderRadius: 22 }} />
+            {item.token?.logoUrl && !imageFailed ? (
+              <Image
+                source={{ uri: item.token.logoUrl }}
+                style={{ width: 44, height: 44, borderRadius: 22 }}
+                onError={() => setImageFailed(true)}
+              />
             ) : (
-              <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: '#333' }} />
+              <View style={styles.fallbackTokenIcon}>
+                <Text style={styles.fallbackTokenText}>{mainSymbol.slice(0, 2).toUpperCase()}</Text>
+              </View>
             )}
           </View>
         )}
@@ -69,9 +80,21 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    overflow: 'hidden',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  fallbackTokenIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#2D1B4E',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fallbackTokenText: {
+    color: 'white',
+    fontSize: 13,
+    fontWeight: '700',
   },
   badgeContainer: {
     position: 'absolute',

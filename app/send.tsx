@@ -25,11 +25,12 @@ import {
 import { GradientButton } from "../src/components/GradientButton";
 import { getNetworkIcon } from "../src/components/NetworkIcons";
 import { PinEntryScreen } from "../src/components/PinEntryScreen";
-import { useWallet } from "../src/context/WalletContext";
+import { TokenBalance, useWallet } from "../src/context/WalletContext";
 import { BtcService } from "../src/services/BtcService";
 import { EthService } from "../src/services/EthService";
 import { SolService } from "../src/services/SolService";
 import { WalletCore } from "../src/utils/WalletCore";
+import { getNetworksByMode } from "../src/utils/networks";
 
 export default function SendScreen() {
   const router = useRouter();
@@ -45,7 +46,24 @@ export default function SendScreen() {
   const [showNetworkSheet, setShowNetworkSheet] = useState(false);
   const [showTokenSheet, setShowTokenSheet] = useState(false);
 
-  const selectedAsset = wallet.tokenBalances?.find(
+  const selectableNetworks = getNetworksByMode(wallet.isTestnet);
+  const nativeNetworkAssets: TokenBalance[] = selectableNetworks.map((network) => {
+    const existing = wallet.tokenBalances?.find((tb) => tb.isNative && tb.network.id === network.id);
+    if (existing) return existing;
+
+    return {
+      id: network.id,
+      isNative: true,
+      network,
+      balanceStr: `0.000000 ${network.symbol}`,
+      balanceValue: 0,
+      usdValue: 0,
+    };
+  });
+  const nonNativeAssets = (wallet.tokenBalances || []).filter((tb) => !tb.isNative);
+  const allAssets = [...nativeNetworkAssets, ...nonNativeAssets];
+
+  const selectedAsset = allAssets.find(
     (t) => t.id === selectedAssetId,
   );
 
@@ -392,37 +410,35 @@ export default function SendScreen() {
           <ScrollView
             style={{ maxHeight: 400, marginTop: 12, marginBottom: -12 }}
           >
-            {wallet.tokenBalances
-              ?.filter((tb) => tb.isNative && Number(tb.balanceValue) > 0)
-              .map((tb) => (
+            {selectableNetworks.map((network) => (
                 <HapticTouchableOpacity
-                  key={tb.id}
+                  key={network.id}
                   style={styles.txCard}
                   onPress={() => {
-                    setSelectedAssetId(tb.id);
+                    setSelectedAssetId(network.id);
                     setShowNetworkSheet(false);
                   }}
                 >
                   <View style={styles.networkLogoContainer}>
-                    {getNetworkIcon(tb.network.symbol, 40) || (
+                    {getNetworkIcon(network.symbol, 40) || (
                       <View
                         style={{
                           width: 40,
                           height: 40,
                           borderRadius: 20,
-                          backgroundColor: tb.network.color || "#333",
+                          backgroundColor: network.color || "#333",
                           justifyContent: "center",
                           alignItems: "center",
                         }}
                       >
                         <Text style={{ color: "white", fontWeight: "bold" }}>
-                          {tb.network.symbol[0]}
+                          {network.symbol[0]}
                         </Text>
                       </View>
                     )}
                   </View>
                   <View style={styles.txInfo}>
-                    <Text style={styles.txTitle}>{tb.network.name}</Text>
+                    <Text style={styles.txTitle}>{network.name}</Text>
                   </View>
                   <View style={styles.txAmounts}>
                     <ChevronRight color="rgba(255,255,255,0.3)" size={20} />
@@ -446,8 +462,8 @@ export default function SendScreen() {
           <ScrollView
             style={{ maxHeight: 400, marginTop: 12, marginBottom: -12 }}
           >
-            {wallet.tokenBalances
-              ?.filter(
+            {allAssets
+              .filter(
                 (tb) =>
                   tb.network.id === selectedAsset?.network.id &&
                   Number(tb.balanceValue) > 0,
