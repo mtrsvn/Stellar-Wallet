@@ -51,17 +51,24 @@ import { TokenListItem } from "../../src/components/TokenListItem";
 import { WalletsSheet } from "../../src/components/WalletsSheet";
 import { useWallet } from "../../src/context/WalletContext";
 
+type ChartPoint = {
+  value: number;
+  labelDate?: string;
+  displayValue?: number;
+};
+
 const ScrubTooltip = ({ items }: { items: any }) => {
   useEffect(() => {
+    const item = items[0];
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     DeviceEventEmitter.emit('onScrub', {
-      value: items[0]?.value,
-      labelDate: items[0]?.labelDate || null,
+      value: item?.displayValue ?? item?.value,
+      labelDate: item?.labelDate || null,
     });
     return () => {
       DeviceEventEmitter.emit('onScrub', { value: null, labelDate: null });
     };
-  }, [items[0]?.value]);
+  }, [items[0]?.displayValue, items[0]?.value]);
 
   // Render nothing — date is shown in header subtitle instead
   return null;
@@ -119,7 +126,7 @@ export default function DashboardScreen() {
   const RANGE_OPTIONS = ['1D', '7D', '30D', '90D', '180D'] as const;
   const [chartRange, setChartRange] = useState<string>('30D');
 
-  const chartData = useMemo(() => {
+  const chartData = useMemo<ChartPoint[]>(() => {
     let currentBal = wallet.totalUsdBalance || 0;
     if (isNaN(currentBal)) currentBal = 0;
     
@@ -146,7 +153,7 @@ export default function DashboardScreen() {
       return !isNaN(txTime) && txTime >= cutoffMs;
     });
 
-    const history = [{ value: currentBal }];
+    const history: ChartPoint[] = [{ value: currentBal }];
 
     for (const tx of sortedTxs) {
       // parse amount from subtitle "1.5 SOL from..."
@@ -225,6 +232,17 @@ export default function DashboardScreen() {
     }
     return history;
   }, [wallet.transactions, wallet.totalUsdBalance, wallet.tokenBalances, chartRange]);
+
+  const isZeroBalanceChart = chartData.every(d => d.value === 0);
+  const visibleChartData = useMemo(() => {
+    if (!isZeroBalanceChart) return chartData;
+
+    return chartData.map((point) => ({
+      ...point,
+      value: 0.5,
+      displayValue: 0,
+    }));
+  }, [chartData, isZeroBalanceChart]);
 
   const searchParams = useLocalSearchParams<{
     scannedAddress?: string;
@@ -363,7 +381,7 @@ export default function DashboardScreen() {
             }}
           >
             <LineChart
-              data={chartData}
+              data={visibleChartData}
               width={Dimensions.get("window").width}
               height={80}
               thickness={2}
@@ -378,7 +396,7 @@ export default function DashboardScreen() {
               adjustToWidth={true}
               yAxisOffset={0}
               mostNegativeValue={-1}
-              maxValue={chartData.every(d => d.value === 0) ? 1 : undefined}
+              maxValue={isZeroBalanceChart ? 1 : undefined}
               pointerConfig={{
                 activatePointersOnLongPress: false,
                 activatePointersDelay: 0,

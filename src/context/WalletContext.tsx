@@ -416,46 +416,6 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Inject mock transactions for UI testing as requested by user
-      const mockTxs = [
-        {
-          title: "Received BNB", subtitle: "2.5 BNB from 0x8A2...9F1b", date: new Date().toLocaleDateString(),
-          dateTime: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(), amountColor: '#14F195', icon: "ArrowDownLeft", networkId: "bnb-mainnet"
-        },
-        {
-          title: "Sent tBNB", subtitle: "0.5 tBNB to 0x1B3...4A2c", date: new Date().toLocaleDateString(),
-          dateTime: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(), amountColor: 'white', icon: "ArrowUpRight", networkId: "bnb-testnet"
-        },
-        {
-          title: "Received ETH", subtitle: "1.2 ETH from 0x7F1...3B2a", date: new Date(Date.now() - 1000 * 60 * 60 * 48).toLocaleDateString(),
-          dateTime: new Date(Date.now() - 1000 * 60 * 60 * 48).toISOString(), amountColor: '#14F195', icon: "ArrowDownLeft", networkId: "ethereum-mainnet"
-        },
-        {
-          title: "Sent USDC", subtitle: "500 USDC to 0x9D2...1C4e", date: new Date(Date.now() - 1000 * 60 * 60 * 72).toLocaleDateString(),
-          dateTime: new Date(Date.now() - 1000 * 60 * 60 * 72).toISOString(), amountColor: 'white', icon: "ArrowUpRight", networkId: "ethereum-mainnet"
-        },
-        {
-          title: "Received SOL", subtitle: "15 SOL from 7X1...9Y2z", date: new Date(Date.now() - 1000 * 60 * 60 * 96).toLocaleDateString(),
-          dateTime: new Date(Date.now() - 1000 * 60 * 60 * 96).toISOString(), amountColor: '#14F195', icon: "ArrowDownLeft", networkId: "solana-mainnet"
-        },
-        {
-          title: "Received BTC", subtitle: "0.05 BTC from 3J9...8K1p", date: new Date(Date.now() - 1000 * 60 * 60 * 120).toLocaleDateString(),
-          dateTime: new Date(Date.now() - 1000 * 60 * 60 * 120).toISOString(), amountColor: '#14F195', icon: "ArrowDownLeft", networkId: "bitcoin-mainnet"
-        },
-        {
-          title: "Sent tBTC", subtitle: "0.01 tBTC to 2M1...5N9q", date: new Date(Date.now() - 1000 * 60 * 60 * 144).toLocaleDateString(),
-          dateTime: new Date(Date.now() - 1000 * 60 * 60 * 144).toISOString(), amountColor: 'white', icon: "ArrowUpRight", networkId: "bitcoin-testnet"
-        }
-      ];
-
-      // Filter mock txs based on current mode (Testnet vs Mainnet)
-      const filteredMocks = mockTxs.filter(mock => {
-         const isMockTestnet = mock.networkId.includes('testnet') || mock.networkId.includes('sepolia') || mock.networkId.includes('devnet');
-         return isTestnet ? isMockTestnet : !isMockTestnet;
-      });
-
-      allTxs = [...allTxs, ...filteredMocks];
-
       // Sort globally
       allTxs.sort((a, b) => new Date(b.dateTime || 0).getTime() - new Date(a.dateTime || 0).getTime());
       setTransactions(allTxs);
@@ -487,6 +447,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     
     await safeSetItemAsync('active_wallet_id', newId);
     setActiveWalletId(newId);
+    setTokenBalances([]);
+    setTransactions([]);
+    setTotalUsdBalance(0);
+    setPortfolioHistory([]);
     setEvmAddress(evm);
     setBtcAddress(btc);
     setSolAddress(sol);
@@ -619,4 +583,3 @@ export function useWallet() {
   if (!ctx) throw new Error('useWallet must be used within WalletProvider');
   return ctx;
 }
-
