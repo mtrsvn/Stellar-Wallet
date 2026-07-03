@@ -194,6 +194,20 @@ export class EthService {
     }
   }
 
+  static async getTransactionStatus(
+    hash: string,
+    network: Network
+  ): Promise<"pending" | "confirmed" | "failed"> {
+    try {
+      const provider = this.getProvider(network.rpcUrl);
+      const receipt = await provider.getTransactionReceipt(hash);
+      if (!receipt) return "pending";
+      return receipt.status === 1 ? "confirmed" : "failed";
+    } catch {
+      return "pending";
+    }
+  }
+
   static async getTransactions(address: string, network: Network): Promise<any[]> {
     try {
       const apiUrl = this.getExplorerApiUrl(network);
@@ -271,9 +285,15 @@ export class EthService {
         return {
           title: `${actionStr} ${symbol}`,
           subtitle,
+          amount: `${isIncoming ? "+" : "-"}${value} ${symbol}`,
+          delta: isIncoming ? "+" : "-",
+          amountColor: isIncoming ? "#14F195" : "white",
           date,
           dateTime: txDate.toISOString(),
           icon: actionStr === "Contract Call" ? "HelpCircle" : isIncoming ? "ArrowDownLeft" : "ArrowUpRight",
+          from: tx.from || "",
+          to: tx.to || "",
+          hash: tx.hash,
         };
       });
     } catch (e) {

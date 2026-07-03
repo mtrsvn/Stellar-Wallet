@@ -187,7 +187,7 @@ export function BottomSheet({ visible, onClose, children, avoidKeyboard = false,
         {/* Sheet container */}
         <Animated.View style={[styles.kavWrapper, { paddingBottom: kbHeight }]} pointerEvents="box-none">
           <Animated.View style={{ transform: [{ translateY: sheetY }] }} {...panResponder.panHandlers}>
-            <View onStartShouldSetResponder={() => true}>
+            <View>
               {children}
             </View>
           </Animated.View>

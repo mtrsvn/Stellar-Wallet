@@ -65,6 +65,7 @@ export interface Transaction {
   amountColor: string;
   icon: string;
   from: string;
+  to?: string;
   networkId?: string;
   hash?: string;
 }

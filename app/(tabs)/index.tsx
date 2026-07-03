@@ -332,6 +332,11 @@ export default function DashboardScreen() {
     ? getNetworkById(selectedTx.networkId)
     : undefined;
   const selectedTxExplorerUrl = getTransactionExplorerUrl(selectedTx, selectedTxNetwork);
+  const selectedTxIsSent = selectedTx?.icon === "ArrowUpRight" || selectedTx?.delta === "-";
+  const selectedTxCounterpartyLabel = selectedTxIsSent ? "To" : "From";
+  const selectedTxCounterpartyValue = selectedTxIsSent
+    ? selectedTx?.to || selectedTx?.from || "Unknown"
+    : selectedTx?.from || selectedTx?.to || "Unknown";
 
   useEffect(() => {
     setAddressCopied(false);
@@ -845,9 +850,9 @@ export default function DashboardScreen() {
               </Text>
             </View>
             <View style={[styles.detailRow, styles.detailRowLast]}>
-              <Text style={styles.detailLabel}>From</Text>
+              <Text style={styles.detailLabel}>{selectedTxCounterpartyLabel}</Text>
               <Text style={styles.detailValue} numberOfLines={1} ellipsizeMode="middle">
-                {selectedTx?.from || "Unknown"}
+                {selectedTxCounterpartyValue}
               </Text>
             </View>
           </View>
