@@ -68,6 +68,7 @@ export interface Transaction {
   to?: string;
   networkId?: string;
   hash?: string;
+  status?: 'pending' | 'confirmed' | 'failed';
 }
 
 export interface TokenBalance {
@@ -108,6 +109,8 @@ interface WalletContextType {
   markCreated: () => Promise<void>;
   loadAccounts: () => Promise<void>;
   refreshData: () => Promise<void>;
+  addLocalTransaction: (tx: Transaction) => void;
+  updateTransactionStatus: (hash: string, status: NonNullable<Transaction['status']>) => void;
   logout: () => Promise<void>;
   removeActiveWallet: () => Promise<boolean>;
   renameActiveWallet: (newName: string) => Promise<void>;
@@ -251,6 +254,20 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const loadWalletData = async (addrs: { evmAddress: string, btcAddress: string, solAddress: string }) => {
     fetchBalancesAndPrices(addrs);
     fetchTransactions(addrs);
+  };
+
+  const addLocalTransaction = (tx: Transaction) => {
+    setTransactions(prev => {
+      if (tx.hash && prev.some(existing => existing.hash === tx.hash)) {
+        return prev.map(existing => existing.hash === tx.hash ? { ...existing, ...tx } : existing);
+      }
+      return [tx, ...prev];
+    });
+  };
+
+  const updateTransactionStatus = (hash: string, status: NonNullable<Transaction['status']>) => {
+    if (!hash) return;
+    setTransactions(prev => prev.map(tx => tx.hash === hash ? { ...tx, status } : tx));
   };
 
   const getAddressForNetwork = (network: Network, addrs: { evmAddress: string, btcAddress: string, solAddress: string }) => {
@@ -566,13 +583,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         try {
           if (net.type === 'EVM') {
             const txs = await EthService.getTransactions(addr, net);
-            allTxs = [...allTxs, ...txs.map(t => ({ ...t, networkId: net.id }))];
+            allTxs = [...allTxs, ...txs.map(t => ({ ...t, networkId: net.id, status: 'confirmed' as const }))];
           } else if (net.type === 'BTC') {
             const txs = await BtcService.getTransactions(addr, net);
-            allTxs = [...allTxs, ...txs.map(t => ({ ...t, networkId: net.id }))];
+            allTxs = [...allTxs, ...txs.map(t => ({ ...t, networkId: net.id, status: 'confirmed' as const }))];
           } else if (net.type === 'SOL') {
             const txs = await SolService.getTransactions(addr, net);
-            allTxs = [...allTxs, ...txs.map(t => ({ ...t, networkId: net.id }))];
+            allTxs = [...allTxs, ...txs.map(t => ({ ...t, networkId: net.id, status: 'confirmed' as const }))];
           }
         } catch(e) {
           console.error(`Failed to fetch txs for ${net.name}:`, e);
@@ -734,7 +751,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       tokenBalances, totalUsdBalance, portfolioHistory, transactions, isBalanceLoading, isTransactionsLoading,
       userPin, biometricEnabled, pinAttempt, isLocked, lockedUntil,
       savePin, verifyPin, setBiometrics, updatePinAttempts, markCreated,
-      loadAccounts, refreshData, logout, removeActiveWallet, renameActiveWallet, switchWallet, addNewWallet,
+      loadAccounts, refreshData, addLocalTransaction, updateTransactionStatus, logout, removeActiveWallet, renameActiveWallet, switchWallet, addNewWallet,
     }}>
       {children}
     </WalletContext.Provider>

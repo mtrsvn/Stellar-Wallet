@@ -135,6 +135,7 @@ export default function SendScreen() {
       if (cancelled) return;
       if (nextStatus !== "pending") {
         setSendStatus(nextStatus);
+        wallet.updateTransactionStatus(sendHash, nextStatus);
         wallet.refreshData();
         return;
       }
@@ -249,9 +250,26 @@ export default function SendScreen() {
       }
 
       if (result.success) {
-        setSendHash(result.hash || "");
+        const hash = result.hash || "";
+        setSendHash(hash);
+        wallet.addLocalTransaction({
+          title: `Sent ${assetSymbol}`,
+          subtitle: `${cleanAmount} ${assetSymbol} to ${cleanAddress.slice(0, 6)}...${cleanAddress.slice(-4)}`,
+          amount: `-${cleanAmount} ${assetSymbol}`,
+          delta: "-",
+          amountColor: "white",
+          icon: "ArrowUpRight",
+          from: wallet.evmAddress,
+          to: cleanAddress,
+          networkId: selectedAsset!.network.id,
+          hash,
+          status: selectedAsset!.network.type === "EVM" ? "pending" : "confirmed",
+          date: new Date().toLocaleDateString(),
+          dateTime: new Date().toISOString(),
+        });
         if (selectedAsset!.network.type !== "EVM") {
           setSendStatus("confirmed");
+          if (hash) wallet.updateTransactionStatus(hash, "confirmed");
           wallet.refreshData();
         }
       } else {
@@ -345,7 +363,7 @@ export default function SendScreen() {
             style={styles.secondaryAction}
             onPress={() => {
               wallet.refreshData();
-              router.back();
+              router.replace("/(tabs)" as any);
             }}
           >
             <Text style={styles.secondaryActionText}>Back to Wallet</Text>

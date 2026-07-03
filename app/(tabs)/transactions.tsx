@@ -1,126 +1,59 @@
-import { HapticTouchableOpacity } from '../../src/components/HapticTouchableOpacity';
-import React, { useEffect, useRef, useState, useCallback } from 'react';
-import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
+import * as Clipboard from 'expo-clipboard';
+import * as Haptics from 'expo-haptics';
+import { Linking, Platform, RefreshControl, StyleSheet, Text, View, ActivityIndicator, FlatList } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { ArrowDownLeft, ArrowUpRight, Check, Copy, ExternalLink, HelpCircle } from 'lucide-react-native';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  Animated,
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  TouchableWithoutFeedback,
-  View,
-  PanResponder,
-  Dimensions,
-  Modal,
-  ActivityIndicator,
-} from 'react-native';
-import { useRouter } from 'expo-router';
-import { ChevronLeft, ArrowDownLeft, ArrowUpRight, HelpCircle } from 'lucide-react-native';
-import { useWallet } from '../../src/context/WalletContext';
+  BottomSheet,
+  handleStyle,
+  sheetBaseStyle,
+} from '../../src/components/BottomSheet';
+import { HapticTouchableOpacity } from '../../src/components/HapticTouchableOpacity';
+import { Transaction, useWallet } from '../../src/context/WalletContext';
+import { getNetworkById, Network } from '../../src/utils/networks';
 
-const SCREEN_HEIGHT = Dimensions.get('window').height;
+const getTransactionExplorerUrl = (tx: Transaction | null, network?: Network) => {
+  if (!tx?.hash || !network) return '';
 
-function TxModal({ selectedTx, onClose }: { selectedTx: any; onClose: () => void }) {
-  const backdropOpacity = useRef(new Animated.Value(0)).current;
-  const sheetTranslateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-
-  const sheetTranslateYVal = useRef(SCREEN_HEIGHT);
-
-  useEffect(() => {
-    const id = sheetTranslateY.addListener((v) => {
-      sheetTranslateYVal.current = v.value;
-    });
-    return () => sheetTranslateY.removeListener(id);
-  }, []);
-
-  const panResponder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponderCapture: (_, gestureState) => {
-        return gestureState.dy > 10 && Math.abs(gestureState.dy) > Math.abs(gestureState.dx);
-      },
-      onPanResponderGrant: () => {
-        sheetTranslateY.stopAnimation();
-        sheetTranslateY.setOffset(sheetTranslateYVal.current);
-        sheetTranslateY.setValue(0);
-      },
-      onPanResponderMove: (_, gestureState) => {
-        if (gestureState.dy > 0) {
-          sheetTranslateY.setValue(gestureState.dy);
-        }
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        sheetTranslateY.flattenOffset();
-        if (gestureState.dy > 120 || gestureState.vy > 0.6) {
-          handleClose();
-        } else {
-          Animated.spring(sheetTranslateY, {
-            toValue: 0,
-            useNativeDriver: false,
-            bounciness: 0,
-          }).start();
-        }
-      },
-    })
-  ).current;
-
-  useEffect(() => {
-    if (selectedTx) {
-      Animated.parallel([
-        Animated.timing(backdropOpacity, { toValue: 1, duration: 250, useNativeDriver: true }),
-        Animated.timing(sheetTranslateY, { toValue: 0, duration: 300, useNativeDriver: false }),
-      ]).start();
+  if (network.type === 'SOL') {
+    if (network.id === 'solana-devnet') {
+      return `https://explorer.solana.com/tx/${tx.hash}?cluster=devnet`;
     }
-  }, [selectedTx]);
+    return `https://solscan.io/tx/${tx.hash}`;
+  }
 
-  const handleClose = () => {
-    Animated.parallel([
-      Animated.timing(backdropOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
-      Animated.timing(sheetTranslateY, { toValue: SCREEN_HEIGHT, duration: 250, useNativeDriver: false }),
-    ]).start(() => onClose());
-  };
-
-  if (!selectedTx) return null;
-
-  return (
-    <Modal transparent visible={!!selectedTx} animationType="none" onRequestClose={handleClose}>
-      <View style={[StyleSheet.absoluteFill, { zIndex: 9999, elevation: 9999 }]} pointerEvents="box-none">
-        <Animated.View style={[StyleSheet.absoluteFill, { opacity: backdropOpacity }]} pointerEvents="auto">
-          <TouchableWithoutFeedback onPress={handleClose}>
-            <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(0,0,0,0.75)' }]} />
-          </TouchableWithoutFeedback>
-        </Animated.View>
-
-        <Animated.View
-          style={[styles.modalContent, { transform: [{ translateY: sheetTranslateY }] }]}
-          pointerEvents="auto"
-          {...panResponder.panHandlers}
-        >
-          <View style={styles.handle} />
-          <Text style={styles.modalTitle}>{selectedTx?.title}</Text>
-          <Text style={styles.modalAmount}>{selectedTx?.subtitle}</Text>
-          <Text style={styles.modalDate}>{selectedTx?.date}</Text>
-
-          <View style={styles.divider} />
-
-          <Text style={styles.label}>From</Text>
-          <Text style={styles.value}>{selectedTx?.from || 'Unknown'}</Text>
-
-          <HapticTouchableOpacity onPress={handleClose} style={styles.closeButton} activeOpacity={0.7}>
-            <Text style={styles.closeText}>Close</Text>
-          </HapticTouchableOpacity>
-        </Animated.View>
-      </View>
-    </Modal>
-  );
-}
+  return `${network.explorerUrl.replace(/\/$/, '')}/tx/${tx.hash}`;
+};
 
 export default function TransactionsScreen() {
   const insets = useSafeAreaInsets();
-  const router = useRouter();
   const wallet = useWallet();
   const [refreshing, setRefreshing] = useState(false);
-  const [selectedTx, setSelectedTx] = useState<any>(null);
+  const [selectedTx, setSelectedTx] = useState<Transaction | null>(null);
+  const [txHashCopied, setTxHashCopied] = useState(false);
+  const txHashCopiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const selectedTxNetwork = selectedTx?.networkId ? getNetworkById(selectedTx.networkId) : undefined;
+  const selectedTxExplorerUrl = getTransactionExplorerUrl(selectedTx, selectedTxNetwork);
+  const selectedTxIsSent = selectedTx?.icon === 'ArrowUpRight' || selectedTx?.delta === '-';
+  const selectedTxCounterpartyLabel = selectedTxIsSent ? 'To' : 'From';
+  const selectedTxCounterpartyValue = selectedTxIsSent
+    ? selectedTx?.to || selectedTx?.from || 'Unknown'
+    : selectedTx?.from || selectedTx?.to || 'Unknown';
+  const selectedTxStatus = selectedTx?.status || (selectedTx?.hash ? 'confirmed' : 'pending');
+
+  useEffect(() => {
+    setTxHashCopied(false);
+  }, [selectedTx?.hash]);
+
+  useEffect(() => {
+    return () => {
+      if (txHashCopiedTimeoutRef.current) {
+        clearTimeout(txHashCopiedTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -128,7 +61,25 @@ export default function TransactionsScreen() {
     setRefreshing(false);
   };
 
-  const renderTx = ({ item }: { item: any }) => {
+  const copyTransactionHash = useCallback(async () => {
+    if (!selectedTx?.hash) return;
+    await Clipboard.setStringAsync(selectedTx.hash);
+    setTxHashCopied(true);
+    if (txHashCopiedTimeoutRef.current) {
+      clearTimeout(txHashCopiedTimeoutRef.current);
+    }
+    txHashCopiedTimeoutRef.current = setTimeout(() => {
+      setTxHashCopied(false);
+    }, 1800);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [selectedTx?.hash]);
+
+  const openTransactionExplorer = useCallback(async () => {
+    if (!selectedTxExplorerUrl) return;
+    await Linking.openURL(selectedTxExplorerUrl);
+  }, [selectedTxExplorerUrl]);
+
+  const renderTx = ({ item }: { item: Transaction }) => {
     let IconComponent = HelpCircle;
     if (item.icon === 'ArrowDownLeft') IconComponent = ArrowDownLeft;
     if (item.icon === 'ArrowUpRight') IconComponent = ArrowUpRight;
@@ -158,21 +109,137 @@ export default function TransactionsScreen() {
       <FlatList
         data={wallet.transactions}
         renderItem={renderTx}
-        keyExtractor={(_, index) => index.toString()}
+        keyExtractor={(item, index) => item.hash || `${item.dateTime || item.date}-${index}`}
         contentContainerStyle={styles.listContent}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="white" />}
         ListEmptyComponent={
           wallet.isTransactionsLoading ? (
             <ActivityIndicator size="small" color="#A855F7" style={{ marginTop: 40 }} />
           ) : (
-            <Text style={{ color: 'rgba(255,255,255,0.7)', textAlign: 'center', marginTop: 40 }}>
+            <Text style={styles.emptyText}>
               No recent transactions
             </Text>
           )
         }
       />
 
-      {selectedTx && <TxModal selectedTx={selectedTx} onClose={() => setSelectedTx(null)} />}
+      <BottomSheet
+        visible={!!selectedTx}
+        onClose={() => {
+          setSelectedTx(null);
+          setTxHashCopied(false);
+        }}
+      >
+        <View
+          style={[
+            sheetBaseStyle,
+            { paddingBottom: Math.max(insets.bottom, 24) },
+          ]}
+        >
+          <View style={styles.handleWrap}>
+            <View style={handleStyle as any} />
+          </View>
+
+          <Text style={styles.sheetTitle}>Transaction Details</Text>
+
+          <View style={styles.txDetailHeader}>
+            <View style={styles.txIconBox}>
+              {selectedTx?.icon === 'ArrowUpRight' ? (
+                <ArrowUpRight color="white" size={20} />
+              ) : selectedTx?.icon === 'ArrowDownLeft' ? (
+                <ArrowDownLeft color="white" size={20} />
+              ) : (
+                <HelpCircle color="white" size={20} />
+              )}
+            </View>
+            <View style={styles.txInfo}>
+              <Text style={styles.txTitle}>{selectedTx?.title || 'Transaction'}</Text>
+              <Text style={styles.txSubtitle} numberOfLines={1}>
+                {selectedTx?.subtitle || selectedTx?.amount || 'No amount details'}
+              </Text>
+            </View>
+            <View style={styles.statusPill}>
+              <Text style={styles.statusPillText}>{selectedTxStatus}</Text>
+            </View>
+          </View>
+
+          <View style={styles.detailCard}>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Network</Text>
+              <Text style={styles.detailValue}>
+                {selectedTxNetwork?.name || selectedTx?.networkId || 'Unknown'}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Date</Text>
+              <Text style={styles.detailValue}>
+                {selectedTx?.dateTime || selectedTx?.date || 'Unknown'}
+              </Text>
+            </View>
+            <View style={styles.detailRow}>
+              <Text style={styles.detailLabel}>Amount</Text>
+              <Text style={[styles.detailValue, { color: selectedTx?.amountColor || 'white' }]}>
+                {selectedTx?.amount || selectedTx?.subtitle || '--'}
+              </Text>
+            </View>
+            <View style={[styles.detailRow, styles.detailRowLast]}>
+              <Text style={styles.detailLabel}>{selectedTxCounterpartyLabel}</Text>
+              <Text style={styles.detailValue} numberOfLines={1} ellipsizeMode="middle">
+                {selectedTxCounterpartyValue}
+              </Text>
+            </View>
+          </View>
+
+          <Text style={styles.fieldLabel}>TRANSACTION HASH</Text>
+          <HapticTouchableOpacity
+            style={styles.hashBox}
+            onPress={copyTransactionHash}
+            disabled={!selectedTx?.hash}
+            activeOpacity={0.7}
+          >
+            <Text style={styles.hashText} numberOfLines={1} ellipsizeMode="middle">
+              {selectedTx?.hash || 'No hash available yet'}
+            </Text>
+            <View
+              style={[
+                styles.copyButtonBox,
+                txHashCopied && styles.copyButtonBoxCopied,
+              ]}
+            >
+              {txHashCopied ? (
+                <Check size={18} color="#14F195" />
+              ) : (
+                <Copy
+                  size={18}
+                  color={selectedTx?.hash ? '#A855F7' : 'rgba(255,255,255,0.35)'}
+                />
+              )}
+            </View>
+          </HapticTouchableOpacity>
+
+          <HapticTouchableOpacity
+            style={[
+              styles.detailActionButton,
+              !selectedTxExplorerUrl && styles.detailActionButtonDisabled,
+            ]}
+            onPress={openTransactionExplorer}
+            disabled={!selectedTxExplorerUrl}
+          >
+            <ExternalLink
+              size={18}
+              color={selectedTxExplorerUrl ? 'white' : 'rgba(255,255,255,0.35)'}
+            />
+            <Text
+              style={[
+                styles.detailActionText,
+                !selectedTxExplorerUrl && styles.detailActionTextDisabled,
+              ]}
+            >
+              View on Explorer
+            </Text>
+          </HapticTouchableOpacity>
+        </View>
+      </BottomSheet>
     </SafeAreaView>
   );
 }
@@ -188,43 +255,141 @@ const styles = StyleSheet.create({
   },
   headerTitle: { color: 'white', fontSize: 20, fontWeight: 'bold' },
   listContent: { paddingHorizontal: 16, paddingBottom: 100 },
-  txCard: { flexDirection: 'row', alignItems: 'center', backgroundColor: 'rgba(255,255,255,0.05)', borderRadius: 16, padding: 16, marginBottom: 12 },
-  txIconBox: { width: 40, height: 40, borderRadius: 20, backgroundColor: 'rgba(255,255,255,0.1)', justifyContent: 'center', alignItems: 'center', marginRight: 16 },
+  emptyText: {
+    color: 'rgba(255,255,255,0.7)',
+    textAlign: 'center',
+    marginTop: 40,
+  },
+  txCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+  },
+  txIconBox: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.1)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
   txInfo: { flex: 1 },
   txTitle: { color: 'white', fontSize: 16, fontWeight: '600', marginBottom: 4 },
   txSubtitle: { color: 'rgba(255,255,255,0.7)', fontSize: 11 },
   txAmounts: { alignItems: 'flex-end', justifyContent: 'center' },
   txDate: { color: 'rgba(255,255,255,0.5)', fontSize: 13 },
-
-  modalContent: {
-    position: 'absolute',
-    bottom: 0, left: 0, right: 0,
-    backgroundColor: '#0B0B0E',
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    padding: 24,
-    paddingBottom: 48,
-  },
-  handle: {
-    width: 36,
-    height: 4,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    borderRadius: 2,
-    alignSelf: 'center',
+  handleWrap: { alignItems: 'center', paddingVertical: 12 },
+  sheetTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: 'white',
     marginBottom: 20,
+    textAlign: 'center',
   },
-  modalTitle: { fontSize: 18, fontWeight: 'bold', color: 'white', marginBottom: 8 },
-  modalAmount: { fontSize: 16, color: 'rgba(255,255,255,0.7)', marginBottom: 8 },
-  modalDate: { fontSize: 14, color: 'rgba(255,255,255,0.54)', marginBottom: 12 },
-  divider: { height: 1, backgroundColor: 'rgba(255,255,255,0.12)', marginVertical: 16 },
-  label: { fontSize: 12, color: 'rgba(255,255,255,0.7)', marginBottom: 6 },
-  value: { fontSize: 14, color: 'white' },
-  closeButton: {
-    marginTop: 32,
-    paddingVertical: 16,
-    backgroundColor: 'rgba(255,255,255,0.08)',
-    borderRadius: 12,
+  txDetailHeader: {
+    flexDirection: 'row',
     alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 16,
   },
-  closeText: { color: 'white', fontWeight: '600', fontSize: 15 },
+  statusPill: {
+    backgroundColor: 'rgba(20, 241, 149, 0.12)',
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+  },
+  statusPillText: {
+    color: '#14F195',
+    fontSize: 12,
+    fontWeight: '700',
+    textTransform: 'capitalize',
+  },
+  detailCard: {
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    marginBottom: 16,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255,255,255,0.08)',
+    paddingVertical: 14,
+  },
+  detailRowLast: { borderBottomWidth: 0 },
+  detailLabel: {
+    color: 'rgba(255,255,255,0.55)',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  detailValue: {
+    flex: 1,
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
+    textAlign: 'right',
+  },
+  fieldLabel: {
+    color: 'rgba(255,255,255,0.5)',
+    fontSize: 12,
+    fontWeight: '600',
+    letterSpacing: 0.8,
+    marginBottom: 8,
+  },
+  hashBox: {
+    backgroundColor: 'rgba(168, 85, 247, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(168, 85, 247, 0.3)',
+    borderRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    marginBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  hashText: {
+    flex: 1,
+    color: 'white',
+    fontSize: 13,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  copyButtonBox: {
+    minWidth: 36,
+    minHeight: 36,
+    backgroundColor: 'rgba(168, 85, 247, 0.2)',
+    borderWidth: 1,
+    borderColor: 'transparent',
+    borderRadius: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  copyButtonBoxCopied: {
+    backgroundColor: 'rgba(20, 241, 149, 0.14)',
+    borderColor: 'rgba(20, 241, 149, 0.35)',
+  },
+  detailActionButton: {
+    backgroundColor: '#A855F7',
+    borderRadius: 14,
+    paddingVertical: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  detailActionButtonDisabled: {
+    backgroundColor: 'rgba(255,255,255,0.08)',
+  },
+  detailActionText: { color: 'white', fontWeight: '700', fontSize: 15 },
+  detailActionTextDisabled: { color: 'rgba(255,255,255,0.35)' },
 });

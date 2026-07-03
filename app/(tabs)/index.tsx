@@ -337,6 +337,7 @@ export default function DashboardScreen() {
   const selectedTxCounterpartyValue = selectedTxIsSent
     ? selectedTx?.to || selectedTx?.from || "Unknown"
     : selectedTx?.from || selectedTx?.to || "Unknown";
+  const selectedTxStatus = selectedTx?.status || (selectedTx?.hash ? "confirmed" : "pending");
 
   useEffect(() => {
     setAddressCopied(false);
@@ -825,7 +826,7 @@ export default function DashboardScreen() {
             </View>
             <View style={styles.statusPill}>
               <Text style={styles.statusPillText}>
-                {selectedTx?.hash ? "Confirmed" : "Pending"}
+                {selectedTxStatus}
               </Text>
             </View>
           </View>
