@@ -15,7 +15,7 @@ import { FontAwesome } from "@expo/vector-icons";
 import Slider from "@react-native-community/slider";
 import { ethers } from "ethers";
 import { useLocalSearchParams, useRouter } from "expo-router";
-import { CheckCircle2, ChevronDown, ChevronRight, Clock3, ExternalLink, XCircle } from "lucide-react-native";
+import { BookOpen, CheckCircle2, ChevronDown, ChevronRight, Clock3, ExternalLink, Plus, Trash2, XCircle } from "lucide-react-native";
 import {
     SafeAreaView
 } from "react-native-safe-area-context";
@@ -27,7 +27,7 @@ import {
 import { GradientButton } from "../src/components/GradientButton";
 import { getNetworkIcon } from "../src/components/NetworkIcons";
 import { PinEntryScreen } from "../src/components/PinEntryScreen";
-import { TokenBalance, useWallet } from "../src/context/WalletContext";
+import { AddressBookEntry, TokenBalance, useWallet } from "../src/context/WalletContext";
 import { BtcService } from "../src/services/BtcService";
 import { EthService } from "../src/services/EthService";
 import { SolService } from "../src/services/SolService";
@@ -35,6 +35,11 @@ import { WalletCore } from "../src/utils/WalletCore";
 import { getNetworksByMode } from "../src/utils/networks";
 
 type SendStatus = "idle" | "pending" | "confirmed" | "failed";
+type GasEstimate = {
+  feeEth: string;
+  gasLimit: string;
+  gasPriceGwei: string;
+};
 
 const getExplorerTxUrl = (asset: TokenBalance | undefined, hash: string) => {
   if (!asset || !hash) return "";
@@ -61,11 +66,15 @@ export default function SendScreen() {
   const [showPin, setShowPin] = useState(false);
   const [showNetworkSheet, setShowNetworkSheet] = useState(false);
   const [showTokenSheet, setShowTokenSheet] = useState(false);
+  const [showAddressBookSheet, setShowAddressBookSheet] = useState(false);
   const [showReviewSheet, setShowReviewSheet] = useState(false);
   const [sendStatus, setSendStatus] = useState<SendStatus>("idle");
   const [sendHash, setSendHash] = useState("");
   const [sendError, setSendError] = useState("");
   const [amountPercent, setAmountPercent] = useState(0);
+  const [gasEstimate, setGasEstimate] = useState<GasEstimate | null>(null);
+  const [isEstimatingGas, setIsEstimatingGas] = useState(false);
+  const [contactName, setContactName] = useState("");
 
   const selectableNetworks = getNetworksByMode(wallet.isTestnet);
   const nativeNetworkAssets: TokenBalance[] = selectableNetworks.map((network) => {
@@ -101,6 +110,13 @@ export default function SendScreen() {
   }, [cleanAmount, selectedAsset]);
   const explorerTxUrl = getExplorerTxUrl(selectedAsset, sendHash);
   const availableBalance = selectedAsset?.balanceValue || 0;
+  const gasFeeValue = Number(gasEstimate?.feeEth || 0);
+  const gasFeeText = gasEstimate
+    ? `${formatAmountInput(gasFeeValue)} ${selectedAsset?.network.symbol || ""}`
+    : "Calculating...";
+  const addressBookEntries = wallet.addressBook.filter(
+    (entry) => entry.networkType === (selectedAsset?.network.type || "EVM"),
+  );
 
   const formatAmountInput = (value: number) => {
     if (!Number.isFinite(value) || value <= 0) return "";
@@ -110,7 +126,10 @@ export default function SendScreen() {
   const setAmountByPercent = (percent: number) => {
     const safePercent = Math.max(0, Math.min(100, Math.round(percent)));
     setAmountPercent(safePercent);
-    setAmount(formatAmountInput((availableBalance * safePercent) / 100));
+    const spendableBalance = selectedAsset?.isNative
+      ? Math.max(availableBalance - gasFeeValue, 0)
+      : availableBalance;
+    setAmount(formatAmountInput((spendableBalance * safePercent) / 100));
   };
 
   const handleAmountChange = (value: string) => {
@@ -158,13 +177,39 @@ export default function SendScreen() {
       selectedAsset.balanceStr !== "0" &&
       selectedAsset.balanceStr !== "0.000000"
     ) {
-      setAmount(selectedAsset.balanceValue.toString());
+      const spendableBalance = selectedAsset.isNative
+        ? Math.max(selectedAsset.balanceValue - gasFeeValue, 0)
+        : selectedAsset.balanceValue;
+      setAmount(formatAmountInput(spendableBalance));
       setAmountPercent(100);
     }
   };
 
-  const validateAndPromptPin = () => {
+  const saveCurrentAddress = async () => {
     const cleanAddress = address.trim();
+    if (!selectedAsset || !ethers.isAddress(cleanAddress)) {
+      Alert.alert("Error", "Enter a valid EVM address first.");
+      return;
+    }
+    const defaultName = `${cleanAddress.slice(0, 6)}...${cleanAddress.slice(-4)}`;
+    await wallet.saveAddressBookEntry({
+      name: contactName.trim() || defaultName,
+      address: cleanAddress,
+      networkType: selectedAsset.network.type,
+    });
+    setContactName("");
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
+  const selectAddressBookEntry = (entry: AddressBookEntry) => {
+    setAddress(entry.address);
+    setContactName(entry.name);
+    setShowAddressBookSheet(false);
+  };
+
+  const validateAndPromptPin = async () => {
+    const cleanAddress = address.trim();
+    setGasEstimate(null);
     if (!cleanAddress || !cleanAmount || !selectedAsset) {
       Alert.alert(
         "Error",
@@ -191,6 +236,29 @@ export default function SendScreen() {
     if (Number(cleanAmount) > selectedAsset.balanceValue) {
       Alert.alert("Error", "Amount is higher than your available balance.");
       return;
+    }
+
+    setIsEstimatingGas(true);
+    try {
+      const estimate = await EthService.estimateTransactionFee(
+        wallet.evmAddress,
+        cleanAddress,
+        cleanAmount,
+        selectedAsset.network,
+        !selectedAsset.isNative ? selectedAsset.token?.address : undefined,
+        !selectedAsset.isNative ? selectedAsset.token?.decimals : undefined,
+      );
+      setGasEstimate(estimate);
+
+      if (selectedAsset.isNative && Number(cleanAmount) + Number(estimate.feeEth) > selectedAsset.balanceValue) {
+        Alert.alert("Insufficient Balance", "You need to leave enough native balance for the network fee.");
+        return;
+      }
+    } catch (e: any) {
+      Alert.alert("Gas Estimate Failed", e.reason || e.message || "Unable to estimate network fee.");
+      return;
+    } finally {
+      setIsEstimatingGas(false);
     }
 
     setShowReviewSheet(true);

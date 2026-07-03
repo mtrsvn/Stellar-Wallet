@@ -194,6 +194,41 @@ export class EthService {
     }
   }
 
+  static async estimateTransactionFee(
+    fromAddress: string,
+    toAddress: string,
+    amountStr: string,
+    network: Network,
+    tokenAddress?: string,
+    decimals?: number
+  ): Promise<{ feeEth: string; feeUsd?: number; gasLimit: string; gasPriceGwei: string }> {
+    const provider = this.getProvider(network.rpcUrl);
+    let gasLimit: bigint;
+
+    if (tokenAddress && decimals !== undefined) {
+      const abi = ["function transfer(address to, uint256 value) returns (bool)"];
+      const contract = new ethers.Contract(tokenAddress, abi, provider);
+      const amount = ethers.parseUnits(amountStr, decimals);
+      gasLimit = await contract.transfer.estimateGas(toAddress, amount, { from: fromAddress });
+    } else {
+      gasLimit = await provider.estimateGas({
+        from: fromAddress,
+        to: toAddress,
+        value: ethers.parseEther(amountStr),
+      });
+    }
+
+    const feeData = await provider.getFeeData();
+    const gasPrice = feeData.gasPrice || feeData.maxFeePerGas || 0n;
+    const feeWei = gasLimit * gasPrice;
+
+    return {
+      feeEth: ethers.formatEther(feeWei),
+      gasLimit: gasLimit.toString(),
+      gasPriceGwei: ethers.formatUnits(gasPrice, "gwei"),
+    };
+  }
+
   static async getTransactionStatus(
     hash: string,
     network: Network

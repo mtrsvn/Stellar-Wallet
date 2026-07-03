@@ -55,6 +55,13 @@ export interface SavedWallet {
   solAddress: string;
 }
 
+export interface AddressBookEntry {
+  id: string;
+  name: string;
+  address: string;
+  networkType: Network['type'];
+}
+
 export interface Transaction {
   title: string;
   date: string;
@@ -95,6 +102,7 @@ interface WalletContextType {
   totalUsdBalance: number;
   portfolioHistory: number[];
   transactions: Transaction[];
+  addressBook: AddressBookEntry[];
   isBalanceLoading: boolean;
   isTransactionsLoading: boolean;
   userPin: string | null;
@@ -111,6 +119,8 @@ interface WalletContextType {
   refreshData: () => Promise<void>;
   addLocalTransaction: (tx: Transaction) => void;
   updateTransactionStatus: (hash: string, status: NonNullable<Transaction['status']>) => void;
+  saveAddressBookEntry: (entry: Omit<AddressBookEntry, 'id'>) => Promise<void>;
+  removeAddressBookEntry: (id: string) => Promise<void>;
   logout: () => Promise<void>;
   removeActiveWallet: () => Promise<boolean>;
   renameActiveWallet: (newName: string) => Promise<void>;
@@ -145,6 +155,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [totalUsdBalance, setTotalUsdBalance] = useState(0);
   const [portfolioHistory, setPortfolioHistory] = useState<number[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [addressBook, setAddressBook] = useState<AddressBookEntry[]>([]);
   const [isBalanceLoading, setIsBalanceLoading] = useState(false);
   const [isTransactionsLoading, setIsTransactionsLoading] = useState(false);
 
@@ -261,6 +272,13 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       if (tx.hash && prev.some(existing => existing.hash === tx.hash)) {
         return prev.map(existing => existing.hash === tx.hash ? { ...existing, ...tx } : existing);
       }
+
+      const addressBookStr = await safeGetItemAsync('address_book');
+      if (addressBookStr) {
+        try {
+          setAddressBook(JSON.parse(addressBookStr));
+        } catch(e) {}
+      }
       return [tx, ...prev];
     });
   };
@@ -268,6 +286,31 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const updateTransactionStatus = (hash: string, status: NonNullable<Transaction['status']>) => {
     if (!hash) return;
     setTransactions(prev => prev.map(tx => tx.hash === hash ? { ...tx, status } : tx));
+  };
+
+  const saveAddressBookEntry = async (entry: Omit<AddressBookEntry, 'id'>) => {
+    const normalizedAddress = entry.address.trim();
+    if (!normalizedAddress) return;
+
+    const nextEntry: AddressBookEntry = {
+      ...entry,
+      address: normalizedAddress,
+      id: `${Date.now()}`,
+    };
+
+    const nextBook = [
+      nextEntry,
+      ...addressBook.filter(saved => saved.address.toLowerCase() !== normalizedAddress.toLowerCase()),
+    ].slice(0, 50);
+
+    setAddressBook(nextBook);
+    await safeSetItemAsync('address_book', JSON.stringify(nextBook));
+  };
+
+  const removeAddressBookEntry = async (id: string) => {
+    const nextBook = addressBook.filter(entry => entry.id !== id);
+    setAddressBook(nextBook);
+    await safeSetItemAsync('address_book', JSON.stringify(nextBook));
   };
 
   const getAddressForNetwork = (network: Network, addrs: { evmAddress: string, btcAddress: string, solAddress: string }) => {
@@ -727,6 +770,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     await safeDeleteItemAsync('wallet_password'); // clear legacy
     await safeDeleteItemAsync('saved_wallets');
     await safeDeleteItemAsync('active_wallet_id');
+    await safeDeleteItemAsync('address_book');
     setIsCreated(false);
     setSavedWallets([]);
     setActiveWalletId(null);
@@ -736,6 +780,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     setTotalUsdBalance(0);
     setTokenBalances([]);
     setTransactions([]);
+    setAddressBook([]);
     setUserPin(null);
     setBiometricEnabled(false);
     setPinAttempt(0);
@@ -748,10 +793,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       isLoading, isCreated, savedWallets, activeWalletId, 
       evmAddress, btcAddress, solAddress,
       isTestnet, setIsTestnet: handleSetIsTestnet,
-      tokenBalances, totalUsdBalance, portfolioHistory, transactions, isBalanceLoading, isTransactionsLoading,
+      tokenBalances, totalUsdBalance, portfolioHistory, transactions, addressBook, isBalanceLoading, isTransactionsLoading,
       userPin, biometricEnabled, pinAttempt, isLocked, lockedUntil,
       savePin, verifyPin, setBiometrics, updatePinAttempts, markCreated,
-      loadAccounts, refreshData, addLocalTransaction, updateTransactionStatus, logout, removeActiveWallet, renameActiveWallet, switchWallet, addNewWallet,
+      loadAccounts, refreshData, addLocalTransaction, updateTransactionStatus, saveAddressBookEntry, removeAddressBookEntry, logout, removeActiveWallet, renameActiveWallet, switchWallet, addNewWallet,
     }}>
       {children}
     </WalletContext.Provider>
