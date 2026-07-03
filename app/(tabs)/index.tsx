@@ -6,6 +6,7 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import {
     ArrowDownLeft,
     ArrowUpRight,
+    Check,
     ChevronLeft,
     ChevronRight,
     Copy,
@@ -50,6 +51,7 @@ import { SettingsSheet } from "../../src/components/SettingsSheet";
 import { TokenListItem } from "../../src/components/TokenListItem";
 import { WalletsSheet } from "../../src/components/WalletsSheet";
 import { useWallet } from "../../src/context/WalletContext";
+import { getNetworksByMode } from "../../src/utils/networks";
 
 type ChartPoint = {
   value: number;
@@ -257,8 +259,16 @@ export default function DashboardScreen() {
   const [sendVisible, setSendVisible] = useState(false);
   const [walletsVisible, setWalletsVisible] = useState(false);
   const [sendToAddress, setSendToAddress] = useState("");
+  const [addressCopied, setAddressCopied] = useState(false);
+  const addressCopiedTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openReceiveQrAfterCloseRef = useRef(false);
+  const reopenReceiveAfterQrCloseRef = useRef(false);
 
   const [receiveNetworkId, setReceiveNetworkId] = useState<string>("");
+  const receiveNetworks = useMemo(
+    () => getNetworksByMode(wallet.isTestnet),
+    [wallet.isTestnet],
+  );
 
   useEffect(() => {
     wallet.loadAccounts();
@@ -286,9 +296,9 @@ export default function DashboardScreen() {
     setRefreshing(false);
   }, [wallet]);
 
-  const selectedReceiveNetwork = wallet.tokenBalances?.find(
-    (n) => n.network.id === receiveNetworkId,
-  )?.network;
+  const selectedReceiveNetwork = receiveNetworks.find(
+    (network) => network.id === receiveNetworkId,
+  );
 
   const getReceiveAddress = () => {
     if (!selectedReceiveNetwork) return "";
@@ -300,9 +310,28 @@ export default function DashboardScreen() {
 
   const currentReceiveAddress = getReceiveAddress();
 
+  useEffect(() => {
+    setAddressCopied(false);
+  }, [currentReceiveAddress]);
+
+  useEffect(() => {
+    return () => {
+      if (addressCopiedTimeoutRef.current) {
+        clearTimeout(addressCopiedTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const copyWalletAddress = useCallback(async () => {
     if (!currentReceiveAddress) return;
     await Clipboard.setStringAsync(currentReceiveAddress);
+    setAddressCopied(true);
+    if (addressCopiedTimeoutRef.current) {
+      clearTimeout(addressCopiedTimeoutRef.current);
+    }
+    addressCopiedTimeoutRef.current = setTimeout(() => {
+      setAddressCopied(false);
+    }, 1800);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   }, [currentReceiveAddress]);
 
@@ -444,7 +473,13 @@ export default function DashboardScreen() {
             </HapticTouchableOpacity>
             <HapticTouchableOpacity
               style={styles.actionButton}
-              onPress={() => setReceiveVisible(true)}
+              onPress={() => {
+                openReceiveQrAfterCloseRef.current = false;
+                reopenReceiveAfterQrCloseRef.current = false;
+                setReceiveQrVisible(false);
+                setReceiveNetworkId("");
+                setReceiveVisible(true);
+              }}
             >
               <ArrowDownLeft size={16} color="white" />
               <Text style={styles.actionText}>Receive</Text>
@@ -520,7 +555,17 @@ export default function DashboardScreen() {
 
       <BottomSheet
         visible={receiveVisible}
-        onClose={() => setReceiveVisible(false)}
+        onClose={() => {
+          setReceiveVisible(false);
+          if (!openReceiveQrAfterCloseRef.current) {
+            setReceiveNetworkId("");
+          }
+        }}
+        onDismiss={() => {
+          if (!openReceiveQrAfterCloseRef.current) return;
+          openReceiveQrAfterCloseRef.current = false;
+          setReceiveQrVisible(true);
+        }}
       >
         <View
           style={[
@@ -535,39 +580,37 @@ export default function DashboardScreen() {
           <Text style={styles.sheetTitle}>Choose Network</Text>
 
           <View style={{ marginTop: 12, marginBottom: -12 }}>
-            {wallet.tokenBalances
-              ?.filter((tb) => tb.isNative)
-              .map((nb) => (
+            {receiveNetworks.map((network) => (
                 <HapticTouchableOpacity
-                  key={nb.network.id}
+                  key={network.id}
                   style={styles.txCard}
                   onPress={() => {
-                    setReceiveNetworkId(nb.network.id);
+                    setReceiveNetworkId(network.id);
+                    openReceiveQrAfterCloseRef.current = true;
                     setReceiveVisible(false);
-                    setTimeout(() => setReceiveQrVisible(true), 300);
                   }}
                 >
                   <View style={styles.networkLogoContainer}>
-                    {getNetworkIcon(nb.network.symbol, 40) || (
+                    {getNetworkIcon(network.symbol, 40) || (
                       <View
                         style={{
                           width: 40,
                           height: 40,
                           borderRadius: 20,
-                          backgroundColor: nb.network.color,
+                          backgroundColor: network.color,
                           justifyContent: "center",
                           alignItems: "center",
                         }}
                       >
                         <Text style={{ color: "white", fontWeight: "bold" }}>
-                          {nb.network.symbol[0]}
+                          {network.symbol[0]}
                         </Text>
                       </View>
                     )}
                   </View>
                   <View style={styles.txInfo}>
                     <Text style={[styles.txTitle, { marginBottom: 0 }]}>
-                      {nb.network.name}
+                      {network.name}
                     </Text>
                   </View>
                   <View style={styles.txAmounts}>
@@ -581,7 +624,17 @@ export default function DashboardScreen() {
 
       <BottomSheet
         visible={receiveQrVisible}
-        onClose={() => setReceiveQrVisible(false)}
+        onClose={() => {
+          setReceiveQrVisible(false);
+          if (!reopenReceiveAfterQrCloseRef.current) {
+            setReceiveNetworkId("");
+          }
+        }}
+        onDismiss={() => {
+          if (!reopenReceiveAfterQrCloseRef.current) return;
+          reopenReceiveAfterQrCloseRef.current = false;
+          setReceiveVisible(true);
+        }}
       >
         <View
           style={[
@@ -603,8 +656,8 @@ export default function DashboardScreen() {
           >
             <HapticTouchableOpacity
               onPress={() => {
+                reopenReceiveAfterQrCloseRef.current = true;
                 setReceiveQrVisible(false);
-                setTimeout(() => setReceiveVisible(true), 300);
               }}
               style={{ padding: 8 }}
             >
@@ -651,13 +704,22 @@ export default function DashboardScreen() {
                 {currentReceiveAddress || "No address yet"}
               </Text>
             </View>
-            <View style={styles.copyButtonBox}>
-              <Copy
-                size={20}
-                color={
-                  currentReceiveAddress ? "#A855F7" : "rgba(255,255,255,0.35)"
-                }
-              />
+            <View
+              style={[
+                styles.copyButtonBox,
+                addressCopied && styles.copyButtonBoxCopied,
+              ]}
+            >
+              {addressCopied ? (
+                <Check size={20} color="#14F195" />
+              ) : (
+                <Copy
+                  size={20}
+                  color={
+                    currentReceiveAddress ? "#A855F7" : "rgba(255,255,255,0.35)"
+                  }
+                />
+              )}
             </View>
           </HapticTouchableOpacity>
           <View style={styles.warningBox}>
@@ -864,9 +926,19 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   copyButtonBox: {
-    padding: 8,
+    minWidth: 36,
+    minHeight: 36,
     backgroundColor: "rgba(168, 85, 247, 0.2)",
+    borderWidth: 1,
+    borderColor: "transparent",
     borderRadius: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  copyButtonBoxCopied: {
+    backgroundColor: "rgba(20, 241, 149, 0.14)",
+    borderColor: "rgba(20, 241, 149, 0.35)",
   },
   warningBox: {
     backgroundColor: "rgba(255, 165, 0, 0.1)",

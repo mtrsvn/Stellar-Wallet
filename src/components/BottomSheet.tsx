@@ -18,9 +18,10 @@ interface Props {
   onClose: () => void;
   children: React.ReactNode;
   avoidKeyboard?: boolean;
+  onDismiss?: () => void;
 }
 
-export function BottomSheet({ visible, onClose, children, avoidKeyboard = false }: Props) {
+export function BottomSheet({ visible, onClose, children, avoidKeyboard = false, onDismiss }: Props) {
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const sheetY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const [mounted, setMounted] = useState(false);
@@ -32,6 +33,11 @@ export function BottomSheet({ visible, onClose, children, avoidKeyboard = false 
   useEffect(() => {
     onCloseRef.current = onClose;
   }, [onClose]);
+
+  const onDismissRef = useRef(onDismiss);
+  useEffect(() => {
+    onDismissRef.current = onDismiss;
+  }, [onDismiss]);
 
   const panResponder = React.useMemo(() =>
     PanResponder.create({
@@ -102,7 +108,10 @@ export function BottomSheet({ visible, onClose, children, avoidKeyboard = false 
       Animated.parallel([
         Animated.timing(backdropOpacity, { toValue: 0, duration: 200, useNativeDriver: true }),
         Animated.timing(sheetY, { toValue: SCREEN_HEIGHT, duration: 250, useNativeDriver: false }),
-      ]).start(() => setMounted(false));
+      ]).start(() => {
+        setMounted(false);
+        onDismissRef.current?.();
+      });
     }
   }, [visible]);
 
