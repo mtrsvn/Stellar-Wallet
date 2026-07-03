@@ -89,7 +89,7 @@ export class PriceService {
   }
 
   static async fetchCoinGeckoSymbolData(symbols: string[]): Promise<Record<string, { price: number; logoUrl: string; coingeckoId: string }>> {
-    const uniqueSymbols = [...new Set(symbols.map(symbol => this.normalizeSymbol(symbol)).filter(Boolean))].slice(0, 10);
+    const uniqueSymbols = [...new Set(symbols.map(symbol => this.normalizeSymbol(symbol)).filter(Boolean))].slice(0, 25);
     const data: Record<string, { price: number; logoUrl: string; coingeckoId: string }> = {};
 
     await Promise.all(
@@ -98,7 +98,14 @@ export class PriceService {
           const searchRes = await fetch(`https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(symbol)}`);
           if (!searchRes.ok) return;
           const search = await searchRes.json();
-          const match = search?.coins?.find((coin: any) => String(coin?.symbol || '').toUpperCase() === symbol);
+          const exactMatches = (search?.coins || []).filter(
+            (coin: any) => String(coin?.symbol || '').toUpperCase() === symbol
+          );
+          const match = exactMatches.sort((a: any, b: any) => {
+            const rankA = Number(a?.market_cap_rank) || Number.MAX_SAFE_INTEGER;
+            const rankB = Number(b?.market_cap_rank) || Number.MAX_SAFE_INTEGER;
+            return rankA - rankB;
+          })[0];
           if (!match?.id) return;
 
           const priceRes = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${match.id}&vs_currencies=usd`);
@@ -294,10 +301,17 @@ export class PriceService {
   }
 
   private static normalizeSymbol(symbol: string) {
-    const normalized = symbol.toUpperCase();
-    if (normalized.startsWith('T') && ['TUSDC', 'TUSDT', 'TBNB', 'TBTC'].includes(normalized)) {
-      return normalized.slice(1);
+    const normalized = symbol.toUpperCase().trim();
+    const prefixedTestSymbols = ['USDC', 'USDT', 'DAI', 'BUSD', 'LINK', 'UNI', 'CAKE', 'WETH', 'WBTC', 'WSOL', 'BNB', 'BTC', 'ETH', 'SOL'];
+
+    for (const prefix of ['T', 'TEST', 'M', 'MOCK']) {
+      if (!normalized.startsWith(prefix)) continue;
+      const withoutPrefix = normalized.slice(prefix.length);
+      if (prefixedTestSymbols.includes(withoutPrefix)) {
+        return withoutPrefix;
+      }
     }
+
     return normalized;
   }
 

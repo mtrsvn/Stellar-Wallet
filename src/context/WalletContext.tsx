@@ -411,7 +411,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
                   .filter(token => !token.coingeckoId)
                   .map(token => token.symbol)
               ),
-              2000,
+              5000,
               {}
             )
           : {};
@@ -441,7 +441,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             tPrice = Number(dexTokenData[marketDataKey]?.price) || 0;
           }
           if (!tPrice || isNaN(tPrice)) {
-            const sym = token.symbol.toUpperCase();
+            const sym = PriceService.normalizeTokenSymbol(token.symbol);
             const mainnetEquivalent = net.isTestnet
               ? PriceService.getMainnetEquivalentToken(sym, net)
               : null;
@@ -464,8 +464,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           
           totalUsd += tUsdVal;
           const marketDataKey = net.type === 'SOL' ? token.address : token.address.toLowerCase();
+          const normalizedSymbol = PriceService.normalizeTokenSymbol(token.symbol);
           const mainnetEquivalent = net.isTestnet
-            ? PriceService.getMainnetEquivalentToken(token.symbol, net)
+            ? PriceService.getMainnetEquivalentToken(normalizedSymbol, net)
             : null;
           const enrichedToken = {
             ...token,
@@ -473,9 +474,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
               coingeckoTokenData[marketDataKey]?.logoUrl ||
               dexTokenData[marketDataKey]?.logoUrl ||
               mainnetEquivalent?.logoUrl ||
-              testnetSymbolData[PriceService.normalizeTokenSymbol(token.symbol)]?.logoUrl ||
+              testnetSymbolData[normalizedSymbol]?.logoUrl ||
               token.logoUrl ||
               PriceService.getTokenLogoUrl(net, token.address),
+            coingeckoId:
+              token.coingeckoId ||
+              mainnetEquivalent?.coingeckoId ||
+              testnetSymbolData[normalizedSymbol]?.coingeckoId ||
+              '',
           };
           balancesList.push({
             id: token.id,
