@@ -404,6 +404,17 @@ export function WalletProvider({ children }: { children: ReactNode }) {
           1500,
           {}
         );
+        const testnetSymbolData = net.isTestnet
+          ? await withTimeout(
+              PriceService.fetchCoinGeckoSymbolData(
+                networkTokens
+                  .filter(token => !token.coingeckoId)
+                  .map(token => token.symbol)
+              ),
+              2000,
+              {}
+            )
+          : {};
 
         for (const token of networkTokens) {
           let tokenBalStr = '0.000000';
@@ -437,6 +448,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
             if (mainnetEquivalent?.coingeckoId) {
               tPrice = Number(prices[mainnetEquivalent.coingeckoId]) || 0;
             }
+            if (!tPrice && testnetSymbolData[sym]?.price) {
+              tPrice = Number(testnetSymbolData[sym].price) || 0;
+            }
             if (!tPrice) tPrice = symbolPrices.get(sym) || 0;
             if (!tPrice && ['USDT', 'USDC', 'DAI', 'BUSD', 'TUSD', 'USDP', 'PYUSD'].includes(sym)) tPrice = 1;
             if (!tPrice && ['WETH', 'ETH'].includes(sym)) tPrice = symbolPrices.get('ETH') || 0;
@@ -459,6 +473,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
               coingeckoTokenData[marketDataKey]?.logoUrl ||
               dexTokenData[marketDataKey]?.logoUrl ||
               mainnetEquivalent?.logoUrl ||
+              testnetSymbolData[PriceService.normalizeTokenSymbol(token.symbol)]?.logoUrl ||
               token.logoUrl ||
               PriceService.getTokenLogoUrl(net, token.address),
           };

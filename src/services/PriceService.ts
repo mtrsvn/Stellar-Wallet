@@ -1,5 +1,6 @@
 import { ethers } from "ethers";
 import { Network } from "../utils/networks";
+import { SUPPORTED_TOKENS } from "../utils/tokens";
 
 export class PriceService {
   static fallbackPrices: Record<string, number> = {
@@ -26,6 +27,10 @@ export class PriceService {
       });
       return prices;
     }
+  }
+
+  static normalizeTokenSymbol(symbol: string) {
+    return this.normalizeSymbol(symbol);
   }
 
   static async fetchTokenPrices(network: Network, tokenAddresses: string[]): Promise<Record<string, number>> {
@@ -75,6 +80,35 @@ export class PriceService {
           data[address] = {
             price: Number(token?.market_data?.current_price?.usd) || 0,
             logoUrl: String(token?.image?.small || token?.image?.thumb || token?.image?.large || ''),
+          };
+        } catch {}
+      })
+    );
+
+    return data;
+  }
+
+  static async fetchCoinGeckoSymbolData(symbols: string[]): Promise<Record<string, { price: number; logoUrl: string; coingeckoId: string }>> {
+    const uniqueSymbols = [...new Set(symbols.map(symbol => this.normalizeSymbol(symbol)).filter(Boolean))].slice(0, 10);
+    const data: Record<string, { price: number; logoUrl: string; coingeckoId: string }> = {};
+
+    await Promise.all(
+      uniqueSymbols.map(async (symbol) => {
+        try {
+          const searchRes = await fetch(`https://api.coingecko.com/api/v3/search?query=${encodeURIComponent(symbol)}`);
+          if (!searchRes.ok) return;
+          const search = await searchRes.json();
+          const match = search?.coins?.find((coin: any) => String(coin?.symbol || '').toUpperCase() === symbol);
+          if (!match?.id) return;
+
+          const priceRes = await fetch(`https://api.coingecko.com/api/v3/simple/price?ids=${match.id}&vs_currencies=usd`);
+          if (!priceRes.ok) return;
+          const priceJson = await priceRes.json();
+
+          data[symbol] = {
+            coingeckoId: String(match.id),
+            price: Number(priceJson?.[match.id]?.usd) || 0,
+            logoUrl: String(match?.large || match?.thumb || ''),
           };
         } catch {}
       })
@@ -159,6 +193,20 @@ export class PriceService {
   static getMainnetEquivalentToken(symbol: string, network: Network) {
     const normalizedSymbol = this.normalizeSymbol(symbol);
     const networkFamily = this.getNetworkFamily(network);
+    const equivalentNetworkId = this.getMainnetNetworkId(networkFamily);
+    const featuredMatch = SUPPORTED_TOKENS.find(token =>
+      token.networkId === equivalentNetworkId &&
+      this.normalizeSymbol(token.symbol) === normalizedSymbol &&
+      token.coingeckoId
+    );
+
+    if (featuredMatch) {
+      return {
+        coingeckoId: featuredMatch.coingeckoId,
+        logoUrl: featuredMatch.logoUrl || this.getTokenLogoUrl({ ...network, id: equivalentNetworkId } as Network, featuredMatch.address),
+        address: featuredMatch.address,
+      };
+    }
 
     const equivalents: Record<string, Record<string, { coingeckoId: string; logoUrl: string; address: string }>> = {
       ethereum: {
@@ -235,6 +283,13 @@ export class PriceService {
     if (network.id.includes('ethereum')) return 'ethereum';
     if (network.id.includes('bnb')) return 'bnb';
     if (network.id.includes('solana')) return 'solana';
+    return '';
+  }
+
+  private static getMainnetNetworkId(networkFamily: string) {
+    if (networkFamily === 'ethereum') return 'ethereum-mainnet';
+    if (networkFamily === 'bnb') return 'bnb-mainnet';
+    if (networkFamily === 'solana') return 'solana-mainnet';
     return '';
   }
 
